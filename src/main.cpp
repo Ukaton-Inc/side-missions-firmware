@@ -1,4 +1,4 @@
-#define DEVICE_NAME "Ukaton Side Mission 1"
+#define DEVICE_NAME "Ukaton Side Mission 1" // replace number with your module's number
 
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
@@ -217,6 +217,7 @@ void setup() {
   BLEAdvertisementData *pAdvertisementData = new BLEAdvertisementData();
   pAdvertisementData->setCompleteServices(BLEUUID::fromString(CONFIGURATION_SERVICE_UUID));
   pAdvertisementData->setName(DEVICE_NAME);
+  pAdvertisementData->setShortName(DEVICE_NAME);
   pAdvertising->setAdvertisementData(*pAdvertisementData);
 
   pAdvertising->setScanResponse(true);
