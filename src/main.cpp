@@ -1,4 +1,4 @@
-#define DEVICE_NAME "Ukaton Side Mission 1" // replace number with your module's number
+#define DEVICE_NAME "Ukaton Side Mission 3" // replace number with your module's number
 
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
@@ -10,50 +10,15 @@ Adafruit_BNO055 bno = Adafruit_BNO055(-1, 0x28);
 
 bool isBnoAwake = false;
 
-#define ACCELERATION_CONFIGURATION_BIT_INDEX 4
-#define LINEAR_ACCELERATION_CONFIGURATION_BIT_INDEX 5
-#define ROTATION_RATE_CONFIGURATION_BIT_INDEX 6
-#define QUATERNION_CONFIGURATION_BIT_INDEX 7
+uint8_t configurationBitmask;
+uint16_t dataDelay;
 
-bool sendAccelerationData = false;
-bool sendLinearAccelerationData = false;
-bool sendRotationRateData = false;
-bool sendQuaternionData = false;
-
-imu::Vector<3> accelerationVector;
-imu::Vector<3> linearAccelerationVector;
-imu::Vector<3> rotationRateVector;
-imu::Quaternion quaternion;
-
-#define DATA_COMPONENT_SIZE 4
-#define TIMESTAMP_SIZE 4
-
-#define ACCELERATION_DATA_SIZE (3*DATA_COMPONENT_SIZE)+TIMESTAMP_SIZE
-#define LINEAR_ACCELERATION_DATA_SIZE (3*DATA_COMPONENT_SIZE)+TIMESTAMP_SIZE
-#define ROTATION_RATE_DATA_SIZE (3*DATA_COMPONENT_SIZE)+TIMESTAMP_SIZE
-#define QUATERNION_DATA_SIZE (4*DATA_COMPONENT_SIZE)+TIMESTAMP_SIZE
-
-uint8_t accelerationData[ACCELERATION_DATA_SIZE];
-uint8_t linearAcclerationData[LINEAR_ACCELERATION_DATA_SIZE];
-uint8_t rotationRateData[ROTATION_RATE_DATA_SIZE];
-uint8_t quaternionData[QUATERNION_DATA_SIZE];
-
-float accelerationX = 0;
-float accelerationY = 0;
-float accelerationZ = 0;
-
-float linearAccelerationX = 0;
-float linearAccelerationY = 0;
-float linearAccelerationZ = 0;
-
-float rotationRateX = 0;
-float rotationRateY = 0;
-float rotationRateZ = 0;
-
-float quaternionX = 0;
-float quaternionY = 0;
-float quaternionZ = 0;
-float quaternionW = 0;
+#define ACCELERATION_CONFIGURATION_BIT_INDEX 0
+#define GRAVITY_CONFIGURATION_BIT_INDEX 1
+#define LINEAR_ACCELERATION_CONFIGURATION_BIT_INDEX 2
+#define ROTATION_RATE_CONFIGURATION_BIT_INDEX 3
+#define MAGNETOMETER_CONFIGURATION_BIT_INDEX 4
+#define QUATERNION_CONFIGURATION_BIT_INDEX 5
 
 #include <BLE2902.h>
 #include <BLEAdvertising.h>
@@ -62,25 +27,42 @@ float quaternionW = 0;
 #include <BLEUtils.h>
 #include <Arduino.h>
 
-#define DATA_SERVICE_UUID "a84a7896-9d7a-41c8-8d46-7d530266c930"
-#define ACCELERATION_DATA_CHARACTERISTIC_UUID "71eb1b54-f492-42bf-b31c-abd6d4a78626"
-#define LINEAR_ACCELERATION_DATA_CHARACTERISTIC_UUID "3011e95c-f428-4ecc-b8fe-b478c0ffc9af"
-#define ROTATION_RATE_DATA_CHARACTERISTIC_UUID "ff5ca46e-d2ac-4fdb-bb1d-d398f15df5a9"
- 
-#define CONFIGURATION_SERVICE_UUID "ca51b65e-1c92-4e54-9bd7-fc1088f48832"
+#define MAX_CHARACTERISTIC_VALUE_LENGTH 23
+#define DATA_CHARACTERISTIC_BASE_OFFSET 5
+uint8_t dataCharacteristicValue[MAX_CHARACTERISTIC_VALUE_LENGTH];
+uint8_t configurationCharacteristicValue[sizeof(uint8_t)*3];
+uint8_t batteryLevelCharacteristicValue[sizeof(float)];
+
+uint16_t batteryLevel = 69;
+
+#define SERVICE_UUID "ca51b65e-1c92-4e54-9bd7-fc1088f48832"
 #define CONFIGURATION_CHARACTERISTIC_UUID "816ad53c-29df-4699-b25a-4acdf89699d6"
-#define QUATERNION_DATA_CHARACTERISTIC_UUID "bb52dc35-1a47-41c1-ae97-ce138dbf2cab"
+#define DATA_CHARACTERISTIC_UUID "bb52dc35-1a47-41c1-ae97-ce138dbf2cab"
+#define BATTERY_SERVICE_UUID BLEUUID((uint16_t)0x180F)
 
 BLEServer *pServer;
 
-BLEService *pDataService;
-BLECharacteristic *pAccelerationDataCharacteristic;
-BLECharacteristic *pLinearAccelerationDataCharacteristic;
-BLECharacteristic *pRotationRateDataCharacteristic;
-
-BLEService *pConfigurationService;
+BLEService *pService;
 BLECharacteristic *pConfigurationCharacteristic;
-BLECharacteristic *pQuaternionDataCharacteristic;
+BLECharacteristic *pDataCharacteristic;
+
+BLEService *pBatteryService;
+BLECharacteristic *pBatteryLevelCharacteristic;
+
+void updateConfigurationCharacteristic(boolean notify) {
+  configurationCharacteristicValue[0] = configurationBitmask;
+  configurationCharacteristicValue[1] = lowByte(dataDelay);
+  configurationCharacteristicValue[2] = highByte(dataDelay);
+  pConfigurationCharacteristic->setValue((uint8_t *)configurationCharacteristicValue, sizeof(configurationCharacteristicValue));
+  if (notify) {
+    pConfigurationCharacteristic->notify();
+  }
+}
+
+void updateBatteryLevelCharacteristic() {
+  // FILL
+  // pBatteryLevelCharacteristic->setValue(batteryLevel);
+}
 
 bool isServerConnected = false;
 
@@ -88,52 +70,49 @@ class MyServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
       isServerConnected = true;
       Serial.println("connected");
+
+      configurationBitmask = 0;
+      dataDelay = 40;
+
+      updateConfigurationCharacteristic(false);
     };
 
     void onDisconnect(BLEServer* pServer) {
       isServerConnected = false;
-      pServer->getAdvertising()->start();
       Serial.println("disconnected");
-
-      sendAccelerationData = false;
-      sendLinearAccelerationData = false;
-      sendRotationRateData = false;
-      sendQuaternionData = false;
 
       bno.enterSuspendMode();
       isBnoAwake = false;
+
+      pServer->getAdvertising()->start();
     }
 };
 
 class ConfigurationCharacteristicCallbacks: public BLECharacteristicCallbacks {
-    void onWrite(BLECharacteristic *pCharacteristic) { 
-      uint8_t* configurationData = pCharacteristic->getData();
+  void onWrite(BLECharacteristic *pCharacteristic) { 
+    uint8_t* configurationData = pCharacteristic->getData();
 
-      if (sizeof(configurationData) >= 1) {
-        uint8_t configurationByte = configurationData[0];
+    if (sizeof(configurationData) >= 2) {
+      configurationBitmask = configurationData[0];
+      uint16_t newDataDelay = (((uint16_t)configurationData[2]) << 8) | ((uint16_t)configurationData[1]);
+      if (newDataDelay >= 20) {
+        dataDelay = newDataDelay;
+      }
 
-        if (configurationByte == 1) {
-            sendAccelerationData = false;
-            sendLinearAccelerationData = false;
-            sendRotationRateData = false;
-            sendQuaternionData = false;
+      updateConfigurationCharacteristic(true);
 
-            bno.enterSuspendMode();
-            isBnoAwake = false;
-        }
-        else {
-            sendAccelerationData = bitRead(configurationByte, ACCELERATION_CONFIGURATION_BIT_INDEX);
-            sendLinearAccelerationData = bitRead(configurationByte, LINEAR_ACCELERATION_CONFIGURATION_BIT_INDEX);
-            sendRotationRateData = bitRead(configurationByte, ROTATION_RATE_CONFIGURATION_BIT_INDEX);
-            sendQuaternionData = bitRead(configurationByte, QUATERNION_CONFIGURATION_BIT_INDEX);
-
-            if (!isBnoAwake) {
-              bno.enterNormalMode();
-              isBnoAwake = true;
-            }
+      if (configurationBitmask == 0) {
+        bno.enterSuspendMode();
+        isBnoAwake = false;
+      }
+      else {
+        if (!isBnoAwake) {
+          bno.enterNormalMode();
+          isBnoAwake = true;
         }
       }
     }
+  }
 };
 
 void setup() {
@@ -151,158 +130,133 @@ void setup() {
   pServer = BLEDevice::createServer();
   pServer->setCallbacks(new MyServerCallbacks());
   
-  pDataService = pServer->createService(DATA_SERVICE_UUID);
+  pService = pServer->createService(SERVICE_UUID);
 
-  pAccelerationDataCharacteristic = pDataService->createCharacteristic(
-    ACCELERATION_DATA_CHARACTERISTIC_UUID,
+  pDataCharacteristic = pService->createCharacteristic(
+    DATA_CHARACTERISTIC_UUID,
     BLECharacteristic::PROPERTY_READ |
     BLECharacteristic::PROPERTY_NOTIFY
   );
-  BLEDescriptor *accelerationDataDescriptor = new BLEDescriptor(BLEUUID((uint16_t)0x2901));
-  accelerationDataDescriptor->setValue("Acceleration Data");
-  pAccelerationDataCharacteristic->addDescriptor(accelerationDataDescriptor);
-  pAccelerationDataCharacteristic->addDescriptor(new BLE2902());
+  BLEDescriptor *pDataDescriptor = new BLEDescriptor(BLEUUID((uint16_t)0x2901));
+  pDataDescriptor->setValue("Data");
+  pDataCharacteristic->addDescriptor(pDataDescriptor);
+  pDataCharacteristic->addDescriptor(new BLE2902());
 
-  pLinearAccelerationDataCharacteristic = pDataService->createCharacteristic(
-    LINEAR_ACCELERATION_DATA_CHARACTERISTIC_UUID,
-    BLECharacteristic::PROPERTY_READ |
-    BLECharacteristic::PROPERTY_NOTIFY
-  );
-  BLEDescriptor *linearAccelerationDataDescriptor = new BLEDescriptor(BLEUUID((uint16_t)0x2901));
-  linearAccelerationDataDescriptor->setValue("Linear Acceleration Data");
-  pLinearAccelerationDataCharacteristic->addDescriptor(linearAccelerationDataDescriptor);
-  pLinearAccelerationDataCharacteristic->addDescriptor(new BLE2902());
-
-  pRotationRateDataCharacteristic = pDataService->createCharacteristic(
-    ROTATION_RATE_DATA_CHARACTERISTIC_UUID,
-    BLECharacteristic::PROPERTY_READ |
-    BLECharacteristic::PROPERTY_NOTIFY
-  );
-  BLEDescriptor *rotationRateDataDescriptor = new BLEDescriptor(BLEUUID((uint16_t)0x2901));
-  rotationRateDataDescriptor->setValue("Rotation Rate Data");
-  pRotationRateDataCharacteristic->addDescriptor(rotationRateDataDescriptor);
-  pRotationRateDataCharacteristic->addDescriptor(new BLE2902());
-
-  pDataService->start();
-
-  pConfigurationService = pServer->createService(CONFIGURATION_SERVICE_UUID);
-
-  pQuaternionDataCharacteristic = pConfigurationService->createCharacteristic(
-    QUATERNION_DATA_CHARACTERISTIC_UUID,
-    BLECharacteristic::PROPERTY_READ |
-    BLECharacteristic::PROPERTY_NOTIFY
-  );
-  BLEDescriptor *quaternionDataDescriptor = new BLEDescriptor(BLEUUID((uint16_t)0x2901));
-  quaternionDataDescriptor->setValue("Quaternion Data");
-  pQuaternionDataCharacteristic->addDescriptor(quaternionDataDescriptor);
-  pQuaternionDataCharacteristic->addDescriptor(new BLE2902());
-
-  pConfigurationCharacteristic = pConfigurationService->createCharacteristic(
+  pConfigurationCharacteristic = pService->createCharacteristic(
     CONFIGURATION_CHARACTERISTIC_UUID,
     BLECharacteristic::PROPERTY_READ |
     BLECharacteristic::PROPERTY_WRITE |
     BLECharacteristic::PROPERTY_NOTIFY
   );
   pConfigurationCharacteristic->setCallbacks(new ConfigurationCharacteristicCallbacks());
-  BLEDescriptor *configurationDescriptor = new BLEDescriptor(BLEUUID((uint16_t)0x2901));
-  configurationDescriptor->setValue("Configuation");
-  pConfigurationCharacteristic->addDescriptor(configurationDescriptor);
+  BLEDescriptor *pConfigurationDescriptor = new BLEDescriptor(BLEUUID((uint16_t)0x2901));
+  pConfigurationDescriptor->setValue("Configuation");
+  pConfigurationCharacteristic->addDescriptor(pConfigurationDescriptor);
   pConfigurationCharacteristic->addDescriptor(new BLE2902());
+  
+  pService->start();
 
-  pConfigurationService->start();
+  pBatteryService = pServer->createService(BATTERY_SERVICE_UUID);
+  pBatteryLevelCharacteristic = pBatteryService->createCharacteristic(
+    BLEUUID((uint16_t)0x2A19),
+    BLECharacteristic::PROPERTY_READ |
+    BLECharacteristic::PROPERTY_NOTIFY
+  );
+  BLEDescriptor *pBatteryLevelDescriptor = new BLEDescriptor(BLEUUID((uint16_t)0x2901));
+  pBatteryLevelDescriptor->setValue("Battery Level");
+  pBatteryLevelCharacteristic->addDescriptor(pBatteryLevelDescriptor);
+  pBatteryLevelCharacteristic->addDescriptor(new BLE2902());
+  pBatteryLevelCharacteristic->setValue(batteryLevel);
+
+  pBatteryService->start();
 
   BLEAdvertising *pAdvertising = pServer->getAdvertising();
-  pAdvertising->addServiceUUID(CONFIGURATION_SERVICE_UUID);
+  pAdvertising->addServiceUUID(SERVICE_UUID);
 
   BLEAdvertisementData *pAdvertisementData = new BLEAdvertisementData();
-  pAdvertisementData->setCompleteServices(BLEUUID::fromString(CONFIGURATION_SERVICE_UUID));
+  pAdvertisementData->setCompleteServices(BLEUUID::fromString(SERVICE_UUID));
   pAdvertisementData->setName(DEVICE_NAME);
   pAdvertisementData->setShortName(DEVICE_NAME);
   pAdvertising->setAdvertisementData(*pAdvertisementData);
 
   pAdvertising->setScanResponse(true);
-  pAdvertising->setMinPreferred(0x06);  // functions that help with iPhone connections issue
+  pAdvertising->setMinPreferred(0x06);
   pAdvertising->setMinPreferred(0x12);
   pAdvertising->start();
 }
 
-#define BNO055_SAMPLERATE_DELAY_MS (40)
 unsigned long currentTime = 0;
-unsigned long lastTime = 0;
+unsigned long lastTimeDataWasUpdated = 0;
+
+int8_t dataBitmask;
+uint32_t timestamp;
+uint8_t dataCharacterByteOffset;
+
+void sendData() {
+  MEMCPY(&dataCharacteristicValue[0], &dataBitmask, 1);
+  MEMCPY(&dataCharacteristicValue[1], &timestamp, sizeof(timestamp));
+  pDataCharacteristic->setValue((uint8_t *)dataCharacteristicValue, sizeof(dataCharacteristicValue));
+  pDataCharacteristic->notify();
+  
+  memset(&dataCharacteristicValue, 0, sizeof(dataCharacteristicValue));
+  dataCharacterByteOffset = DATA_CHARACTERISTIC_BASE_OFFSET;
+  dataBitmask = 0;
+}
+
+void checkData(uint8_t bitIndex, bool isVector, Adafruit_BNO055::adafruit_vector_type_t vector_type = Adafruit_BNO055::VECTOR_ACCELEROMETER) {
+  if (bitRead(configurationBitmask, bitIndex)) {
+    uint8_t size = isVector? 6:8;
+    if (dataCharacterByteOffset + size > MAX_CHARACTERISTIC_VALUE_LENGTH) {
+      sendData();
+    }
+
+    bitSet(dataBitmask, bitIndex);
+
+    uint8_t buffer[size];
+
+    if (isVector) {
+      bno.getRawVectorData(vector_type, buffer);
+    }
+    else {
+      bno.getRawQuatData(buffer);
+    }
+
+    MEMCPY(&dataCharacteristicValue[dataCharacterByteOffset], &buffer, size);
+    dataCharacterByteOffset += size;
+  }
+}
+
+#define BATTERY_LEVEL_DELAY_MS (1000)
+unsigned long lastTimeBatteryWasUpdated = 0;
+
 
 void loop() {
   currentTime = millis();
-  if(currentTime >= lastTime + BNO055_SAMPLERATE_DELAY_MS) {
-      lastTime += BNO055_SAMPLERATE_DELAY_MS;
+  if(currentTime >= lastTimeDataWasUpdated + dataDelay) {
+    lastTimeDataWasUpdated += dataDelay;
 
-      if (isServerConnected && isBnoAwake) {
-        if (sendAccelerationData) {
-          accelerationVector = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
+    if (isServerConnected && isBnoAwake && configurationBitmask) {
+      memset(dataCharacteristicValue, 0, sizeof(dataCharacteristicValue));
 
-          accelerationX = float(accelerationVector.x());
-          accelerationY = float(accelerationVector.y());
-          accelerationZ = float(accelerationVector.z());
+      dataBitmask = 0;
+      timestamp = currentTime;
+      dataCharacterByteOffset = DATA_CHARACTERISTIC_BASE_OFFSET;
 
-          MEMCPY(&accelerationData[DATA_COMPONENT_SIZE*0], &accelerationX, DATA_COMPONENT_SIZE);
-          MEMCPY(&accelerationData[DATA_COMPONENT_SIZE*1], &accelerationY, DATA_COMPONENT_SIZE);
-          MEMCPY(&accelerationData[DATA_COMPONENT_SIZE*2], &accelerationZ, DATA_COMPONENT_SIZE);
+      checkData(ACCELERATION_CONFIGURATION_BIT_INDEX, true, Adafruit_BNO055::VECTOR_ACCELEROMETER);
+      checkData(GRAVITY_CONFIGURATION_BIT_INDEX, true, Adafruit_BNO055::VECTOR_GRAVITY);
+      checkData(LINEAR_ACCELERATION_CONFIGURATION_BIT_INDEX, true, Adafruit_BNO055::VECTOR_LINEARACCEL);
+      checkData(ROTATION_RATE_CONFIGURATION_BIT_INDEX, true, Adafruit_BNO055::VECTOR_GYROSCOPE);
+      checkData(MAGNETOMETER_CONFIGURATION_BIT_INDEX, true, Adafruit_BNO055::VECTOR_MAGNETOMETER);
+      checkData(QUATERNION_CONFIGURATION_BIT_INDEX, false);
 
-          MEMCPY(&accelerationData[DATA_COMPONENT_SIZE*3], &currentTime, sizeof(currentTime));
-
-          pAccelerationDataCharacteristic->setValue((uint8_t *)accelerationData, sizeof(uint8_t)*ACCELERATION_DATA_SIZE);
-          pAccelerationDataCharacteristic->notify();
-        }
-
-        if (sendLinearAccelerationData) {
-          linearAccelerationVector = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
-
-          linearAccelerationX = float(linearAccelerationVector.x());
-          linearAccelerationY = float(linearAccelerationVector.y());
-          linearAccelerationZ = float(linearAccelerationVector.z());
-
-          MEMCPY(&linearAcclerationData[DATA_COMPONENT_SIZE*0], &linearAccelerationX, DATA_COMPONENT_SIZE);
-          MEMCPY(&linearAcclerationData[DATA_COMPONENT_SIZE*1], &linearAccelerationY, DATA_COMPONENT_SIZE);
-          MEMCPY(&linearAcclerationData[DATA_COMPONENT_SIZE*2], &linearAccelerationZ, DATA_COMPONENT_SIZE);
-
-          MEMCPY(&linearAcclerationData[DATA_COMPONENT_SIZE*3], &currentTime, sizeof(currentTime));
-
-          pLinearAccelerationDataCharacteristic->setValue((uint8_t *)linearAcclerationData, sizeof(uint8_t)*LINEAR_ACCELERATION_DATA_SIZE);
-          pLinearAccelerationDataCharacteristic->notify();
-        }
-        if (sendRotationRateData) {
-          rotationRateVector = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
-
-          rotationRateX = float(rotationRateVector.x());
-          rotationRateY = float(rotationRateVector.y());
-          rotationRateZ = float(rotationRateVector.z());
-
-          MEMCPY(&rotationRateData[DATA_COMPONENT_SIZE*0], &rotationRateX, DATA_COMPONENT_SIZE);
-          MEMCPY(&rotationRateData[DATA_COMPONENT_SIZE*1], &rotationRateY, DATA_COMPONENT_SIZE);
-          MEMCPY(&rotationRateData[DATA_COMPONENT_SIZE*2], &rotationRateZ, DATA_COMPONENT_SIZE);
-
-          MEMCPY(&rotationRateData[DATA_COMPONENT_SIZE*3], &currentTime, sizeof(currentTime));
-
-          pRotationRateDataCharacteristic->setValue((uint8_t *)rotationRateData, sizeof(uint8_t)*ROTATION_RATE_DATA_SIZE);
-          pRotationRateDataCharacteristic->notify();
-        }
-        if (sendQuaternionData) {
-          quaternion = bno.getQuat();
-
-          quaternionW = float(quaternion.w());
-          quaternionX = float(quaternion.x());
-          quaternionY = float(quaternion.y());
-          quaternionZ = float(quaternion.z());
-
-          MEMCPY(&quaternionData[DATA_COMPONENT_SIZE*0], &quaternionW, DATA_COMPONENT_SIZE);
-          MEMCPY(&quaternionData[DATA_COMPONENT_SIZE*1], &quaternionX, DATA_COMPONENT_SIZE);
-          MEMCPY(&quaternionData[DATA_COMPONENT_SIZE*2], &quaternionY, DATA_COMPONENT_SIZE);
-          MEMCPY(&quaternionData[DATA_COMPONENT_SIZE*3], &quaternionZ, DATA_COMPONENT_SIZE);
-
-          MEMCPY(&quaternionData[DATA_COMPONENT_SIZE*4], &currentTime, sizeof(currentTime));
-
-          pQuaternionDataCharacteristic->setValue((uint8_t *)quaternionData, sizeof(uint8_t)*QUATERNION_DATA_SIZE);
-          pQuaternionDataCharacteristic->notify();
-        }
+      if (dataCharacterByteOffset > DATA_CHARACTERISTIC_BASE_OFFSET) {
+        sendData();
       }
+    }
+  }
+
+  if(currentTime >= lastTimeBatteryWasUpdated + BATTERY_LEVEL_DELAY_MS) {
+    lastTimeBatteryWasUpdated += BATTERY_LEVEL_DELAY_MS;
+    updateBatteryLevelCharacteristic();
   }
 }
