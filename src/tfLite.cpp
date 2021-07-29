@@ -20,9 +20,9 @@ namespace tfLite
     uint8_t numberOfClasses = 2; // modify
     uint8_t dataTypesBitmask = 0b100; // modify
     uint16_t sampleRate = 40; // modify
-    uint16_t numberOfSamples = 48; // modify
-    float thresholds[NUMBER_OF_THRESHOLDS] = {8., 0}; // modify
-    uint16_t captureDelay = 200; // modify
+    uint16_t numberOfSamples = 13; // modify
+    float thresholds[NUMBER_OF_THRESHOLDS] = {4.6, 0}; // modify
+    uint16_t captureDelay = 400; // modify
 
     bool isCapturingSamples = false;
     uint8_t sampleDataSize;
