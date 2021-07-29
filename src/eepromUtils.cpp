@@ -2,6 +2,9 @@
 
 namespace eepromUtils
 {
+    const uint16_t EEPROM_SIZE = 512;
+    const uint8_t EEPROM_SCHEMA = 1;
+
     unsigned char schema;
     bool firstInitialized = false;
     uint16_t freeAddress = 1;

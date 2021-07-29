@@ -4,11 +4,10 @@
 
 #include <EEPROM.h>
 
-#define EEPROM_SIZE 512
-#define EEPROM_SCHEMA 1
-
 namespace eepromUtils
 {
+    extern const uint16_t EEPROM_SIZE;
+    extern const uint8_t EEPROM_SCHEMA;
     extern unsigned char schema;
     extern bool firstInitialized;
     extern uint16_t freeAddress;

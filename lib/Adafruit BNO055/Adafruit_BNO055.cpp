@@ -451,11 +451,11 @@ imu::Vector<3> Adafruit_BNO055::getVector(adafruit_vector_type_t vector_type) {
  *            VECTOR_GRAVITY]
  *  @return  raw component values
  */
-void Adafruit_BNO055::getRawVectorData(adafruit_vector_type_t vector_type, uint8_t* buffer) {
+void Adafruit_BNO055::getRawVectorData(adafruit_vector_type_t vector_type, int16_t* buffer) {
   memset(buffer, 0, 6);
 
   /* Read vector data (6 bytes) */
-  readLen((adafruit_bno055_reg_t)vector_type, buffer, 6);
+  readLen((adafruit_bno055_reg_t)vector_type, (uint8_t *) buffer, 6);
 }
 
 /*!
@@ -490,11 +490,11 @@ imu::Quaternion Adafruit_BNO055::getQuat() {
 /*!
  *  @brief  Gets a raq quaternion reading from the specified source
  */
-void Adafruit_BNO055::getRawQuatData(uint8_t* buffer) {
+void Adafruit_BNO055::getRawQuatData(int16_t* buffer) {
   memset(buffer, 0, 8);
 
   /* Read quat data (8 bytes) */
-  readLen(BNO055_QUATERNION_DATA_W_LSB_ADDR, buffer, 8);
+  readLen(BNO055_QUATERNION_DATA_W_LSB_ADDR, (uint8_t *) buffer, 8);
 }
 
 /*!

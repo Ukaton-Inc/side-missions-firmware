@@ -4,8 +4,8 @@
 #include "ble.h"
 #include "name.h"
 #include "battery.h"
-#include "imu.h"
-#include "tinyML.h"
+#include "motion.h"
+#include "tfLite.h"
 #include "fileTransfer.h"
 
 void setup()
@@ -16,8 +16,8 @@ void setup()
     ble::setup();
     name::setup();
     battery::setup();
-    imu::setup();
-    tinyML::setup();
+    motion::setup();
+    tfLite::setup();
     fileTransfer::setup();
 
     ble::start();
@@ -26,5 +26,6 @@ void setup()
 void loop()
 {
     battery::loop();
-    imu::loop();
+    motion::loop();
+    tfLite::loop();
 }

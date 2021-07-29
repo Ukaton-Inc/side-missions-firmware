@@ -4,10 +4,9 @@
 
 #include "ble.h"
 
-#define BATTERY_LEVEL_DELAY_MS (1000)
-
 namespace battery
 {
+    extern const uint16_t battery_level_delay_ms;
     extern uint8_t batteryLevel;
 
     extern BLEService *pBatteryService;

@@ -5,10 +5,10 @@
 #include <Arduino.h>
 #include "ble.h"
 
-#define MAX_NAME_LENGTH 30
-
 namespace name
 {
+    extern const uint8_t MAX__NAME_LENGTH;
+
     extern std::string name;
     extern uint16_t eepromAddress;
 

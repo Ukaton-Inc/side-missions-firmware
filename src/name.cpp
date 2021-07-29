@@ -4,6 +4,8 @@
 
 namespace name
 {
+    const uint8_t MAX_NAME_LENGTH = 30;
+
     std::string name = DEFAULT_BLE_NAME;
     uint16_t eepromAddress;
 
@@ -11,7 +13,7 @@ namespace name
         name = EEPROM.readString(eepromAddress).c_str();
     }
     void saveToEEPROM() {
-        EEPROM.writeString(eepromAddress, name.substr(0, min((int)name.length(), MAX_NAME_LENGTH)).c_str());
+        EEPROM.writeString(eepromAddress, name.substr(0, min((const uint8_t)name.length(), MAX_NAME_LENGTH)).c_str());
         EEPROM.commit();
     }
 

@@ -295,9 +295,9 @@ public:
                       uint8_t *mag);
 
   imu::Vector<3> getVector(adafruit_vector_type_t vector_type);
-  void getRawVectorData(adafruit_vector_type_t vector_type, uint8_t* buffer);
+  void getRawVectorData(adafruit_vector_type_t vector_type, int16_t* buffer);
   imu::Quaternion getQuat();
-  void getRawQuatData(uint8_t* buffer);
+  void getRawQuatData(int16_t* buffer);
   int8_t getTemp();
 
   /* Adafruit_Sensor implementation */

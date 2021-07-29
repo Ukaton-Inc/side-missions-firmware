@@ -1,9 +1,13 @@
-#include "imu.h"
+#include "motion.h"
 #include "ble.h"
 
-namespace imu {
+namespace motion {
     Adafruit_BNO055 bno = Adafruit_BNO055(-1, 0x28);
     bool isBnoAwake = false;
+
+    const uint16_t calibration_delay_ms = 1000;
+    const uint8_t data_delay_ms = 20;
+    const uint8_t data_base_offset = sizeof(uint8_t) + sizeof(unsigned long);
 
     BLECharacteristic *pCalibrationCharacteristic;
     uint8_t callibration[NUMBER_OF_CALIBRATION_TYPES];
@@ -14,8 +18,8 @@ namespace imu {
     }
     unsigned long lastCalibrationLoopTime = 0;
     void calibrationLoop() {
-        if (currentTime >= lastCalibrationLoopTime + IMU_CALIBRATION_DELAY_MS) {
-            lastCalibrationLoopTime += IMU_CALIBRATION_DELAY_MS;
+        if (currentTime >= lastCalibrationLoopTime + calibration_delay_ms) {
+            lastCalibrationLoopTime = currentTime - (currentTime % calibration_delay_ms);
             updateCalibration();
         }
     }
@@ -31,7 +35,7 @@ namespace imu {
                 uint16_t *characteristicData = (uint16_t *) pCharacteristic->getData();
                 for (int i = 0; i < NUMBER_OF_DATA_TYPES; i++) {
                     delays[i] = characteristicData[i];
-                    delays[i] -= delays[i] % IMU_DATA_DELAY_MS;
+                    delays[i] -= delays[i] % data_delay_ms;
                 }
             }
             pCharacteristic->setValue((uint8_t *) delays, sizeof(delays));
@@ -39,14 +43,14 @@ namespace imu {
     };
 
     BLECharacteristic *pDataCharacteristic;
-    uint8_t dataCharacteristicValue[MAX_CHARACTERISTIC_VALUE_LENGTH];
+    uint8_t dataCharacteristicValue[ble::max_characteristic_value_length];
     uint8_t dataCharacteristicValueBitmask;
     uint8_t dataCharacteristicValueOffset;
-    uint8_t dataCharacteristicValueBuffer[8] = {0};
+    int16_t dataCharacteristicValueBuffer[4] = {0};
     unsigned long lastDataLoopTime;
     void updateData() {
         dataCharacteristicValueBitmask = 0;
-        dataCharacteristicValueOffset = IMU_DATA_BASE_OFFSET;
+        dataCharacteristicValueOffset = data_base_offset;
         for (uint8_t i = 0; i < NUMBER_OF_DATA_TYPES; i++) {
             if (delays[i] != 0 && lastDataLoopTime % delays[i] == 0) {
                 switch(i) {
@@ -79,7 +83,7 @@ namespace imu {
     }
     void addData(uint8_t bitIndex, bool isVector, Adafruit_BNO055::adafruit_vector_type_t vector_type) {
         uint8_t size = isVector ? 6 : 8;
-        if (dataCharacteristicValueOffset + size > MAX_CHARACTERISTIC_VALUE_LENGTH)
+        if (dataCharacteristicValueOffset + size > ble::max_characteristic_value_length)
         {
             sendData();
         }
@@ -106,12 +110,12 @@ namespace imu {
 
         memset(&dataCharacteristicValue, 0, sizeof(dataCharacteristicValue));
         dataCharacteristicValueBitmask = 0;
-        dataCharacteristicValueOffset = IMU_DATA_BASE_OFFSET;
+        dataCharacteristicValueOffset = data_base_offset;
     }
     void dataLoop() {
-        if (currentTime >= lastDataLoopTime + IMU_DATA_DELAY_MS) {
+        if (currentTime >= lastDataLoopTime + data_delay_ms) {
             updateData();
-            lastDataLoopTime += IMU_DATA_DELAY_MS;
+            lastDataLoopTime = currentTime - (currentTime % data_delay_ms);
         }
     }
 

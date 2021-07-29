@@ -11,19 +11,20 @@
 #include <BLEUtils.h>
 
 #define DEFAULT_BLE_NAME "Ukaton Side Mission"
-#define MAX_CHARACTERISTIC_VALUE_LENGTH 23
 #define GENERATE_UUID(val) ("5691eddf-" val "-4420-b7a5-bb8751ab5181")
 
 namespace ble
-{    
+{
+    constexpr uint8_t max_characteristic_value_length = 23;
+
     extern BLEServer *pServer;
     class ServerCallbacks;
     extern BLEService *pService;
 
+    extern bool isServerConnected;
+
     extern BLEAdvertising *pAdvertising;
     extern BLEAdvertisementData *pAdvertisementData;
-
-    extern bool isServerConnected;
 
     void setup();
 

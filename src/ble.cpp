@@ -1,16 +1,20 @@
 #include "ble.h"
 #include "name.h"
-#include "imu.h"
+#include "motion.h"
+#include "tflite.h"
+#include "fileTransfer.h"
 
 namespace ble
 {
     BLEServer *pServer;
     BLEService *pService;
 
+    bool isServerConnected = false;
+
     BLEAdvertising *pAdvertising;
     BLEAdvertisementData *pAdvertisementData;
 
-    bool isServerConnected = false;
+    BLECharacteristic *pErrorMessageCharacteristic;
 
     class ServerCallbacks : public BLEServerCallbacks
     {
@@ -19,7 +23,7 @@ namespace ble
             isServerConnected = true;
             Serial.println("connected");
 
-            imu::start();
+            motion::start();
         };
 
         void onDisconnect(BLEServer *pServer)
@@ -27,9 +31,9 @@ namespace ble
             isServerConnected = false;
             Serial.println("disconnected");
             
-            imu::stop();
-            // clear tinyML bitmask
-
+            motion::stop();
+            tfLite::stop();
+            fileTransfer::cancelFileTransfer();
             pAdvertising->start();
         }
     };
