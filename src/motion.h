@@ -12,7 +12,7 @@ namespace motion
     extern bool isBnoAwake;
 
     extern const uint16_t calibration_delay_ms;
-    extern const uint8_t data_delay_ms;
+    extern const uint16_t data_delay_ms;
     extern const uint8_t data_base_offset;
  
     typedef enum: uint8_t
@@ -52,7 +52,7 @@ namespace motion
     class ConfigurationCharacteristicCallbacks;
 
     extern BLECharacteristic *pDataCharacteristic;
-    extern uint8_t dataCharacteristicValue[ble::max_characteristic_value_length]; // [timestamp, sensorId, values]
+    extern uint8_t dataCharacteristicValue[ble::max_characteristic_value_length]; // [timestamp, bitmask, values]
     extern uint8_t dataCharacteristicValueBitmask;
     extern uint8_t dataCharacteristicValueOffset;
     extern int16_t dataCharacteristicValueBuffer[4];

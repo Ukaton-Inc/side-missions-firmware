@@ -10,8 +10,12 @@
 #include "tensorflow/lite/version.h"
 
 #include "ble.h"
-#include "motion.h"
-
+#include "definitions.h"
+#if IS_INSOLE
+    #include "crappyMotion.h"
+#else
+    #include "motion.h"
+#endif
 namespace tfLite
 {
     extern bool isModelLoaded;

@@ -1,8 +1,14 @@
+#include "definitions.h"
 #include "ble.h"
 #include "name.h"
-#include "motion.h"
-#include "tflite.h"
-#include "fileTransfer.h"
+#if IS_INSOLE
+    #include "pressure.h"
+    #include "crappyMotion.h"
+#else
+    #include "motion.h"
+    #include "tflite.h"
+    #include "fileTransfer.h"
+#endif
 
 namespace ble
 {
@@ -22,8 +28,10 @@ namespace ble
         {
             isServerConnected = true;
             Serial.println("connected");
-
-            motion::start();
+            
+            #ifdef _MOTION_
+                motion::start();
+            #endif
         };
 
         void onDisconnect(BLEServer *pServer)
@@ -31,9 +39,21 @@ namespace ble
             isServerConnected = false;
             Serial.println("disconnected");
             
-            motion::stop();
-            tfLite::stop();
-            fileTransfer::cancelFileTransfer();
+            #ifdef _MOTION_
+                motion::stop();
+            #endif
+            #ifdef _CRAPPY_MOTION_
+                crappyMotion::stop();
+            #endif
+            #ifdef _PRESSURE_
+                pressure::stop();
+            #endif
+            #ifdef _TF_LITE_
+                tfLite::stop();
+            #endif
+            #ifdef _FILE_TRANSFER_
+                fileTransfer::cancelFileTransfer();
+            #endif
             pAdvertising->start();
         }
     };
@@ -41,6 +61,7 @@ namespace ble
     void setup()
     {
         BLEDevice::init(DEFAULT_BLE_NAME);
+        //BLEDevice::setMTU(max_characteristic_value_length);
         pServer = BLEDevice::createServer();
         pServer->setCallbacks(new ServerCallbacks());
         pService = pServer->createService(BLEUUID(GENERATE_UUID("0000")), 100);

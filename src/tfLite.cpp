@@ -16,13 +16,13 @@ namespace tfLite
     TfLiteTensor *tflOutputTensor = nullptr;
 
     bool enabled = false;
-    uint8_t modelType = CLASSIFICATION; // modify
-    uint8_t numberOfClasses = 2; // modify
-    uint8_t dataTypesBitmask = 0b100; // modify
-    uint16_t sampleRate = 40; // modify
-    uint16_t numberOfSamples = 13; // modify
+    uint8_t modelType = CLASSIFICATION;                // modify
+    uint8_t numberOfClasses = 2;                       // modify
+    uint8_t dataTypesBitmask = 0b100;                  // modify
+    uint16_t sampleRate = 40;                          // modify
+    uint16_t numberOfSamples = 13;                     // modify
     float thresholds[NUMBER_OF_THRESHOLDS] = {4.6, 0}; // modify
-    uint16_t captureDelay = 400; // modify
+    uint16_t captureDelay = 400;                       // modify
 
     bool isCapturingSamples = false;
     uint8_t sampleDataSize;
@@ -112,7 +112,7 @@ namespace tfLite
             {
                 thresholds[i] = data[i];
             }
-            
+
             Serial.print("set tflite thresholds: ");
             Serial.print(thresholds[0]);
             Serial.print(", ");
@@ -135,7 +135,8 @@ namespace tfLite
         {
             uint8_t *data = pCharacteristic->getData();
             uint8_t makeInference = data[0];
-            if (makeInference == 1) {
+            if (makeInference == 1)
+            {
                 startCapturingSamples();
             }
             Serial.print("set tflite make inference: ");
@@ -244,19 +245,23 @@ namespace tfLite
                     const float threshold = thresholds[i];
                     if (i == LINEAR_ACCELERATION_THRESHOLD)
                     {
+#ifdef _MOTION_
                         imu::Vector<3> linearAccelerationVector = motion::bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
                         if (linearAccelerationVector.magnitude() < threshold)
                         {
                             reachedThresholds = false;
                         }
+#endif
                     }
                     else if (i == ROTATION_RATE_THRESHOLD)
                     {
+#ifdef _MOTION_
                         imu::Vector<3> rotationRateVector = motion::bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
                         if (rotationRateVector.magnitude() < threshold)
                         {
                             reachedThresholds = false;
                         }
+#endif
                     }
                 }
             }
@@ -279,41 +284,55 @@ namespace tfLite
                     uint8_t size = 0;
                     uint16_t range = 1;
 
-                    switch(i) {
-                        case ACCELERATION_BITMASK_INDEX:
-                            motion::bno.getRawVectorData(Adafruit_BNO055::VECTOR_ACCELEROMETER, buffer);
-                            size = 3;
-                            range = motion::ACCELEROMETER_RANGE;
-                            break;
-                        case GRAVITY_BITMASK_INDEX:
-                            motion::bno.getRawVectorData(Adafruit_BNO055::VECTOR_GRAVITY, buffer);
-                            size = 3;
-                            range = motion::ACCELEROMETER_RANGE;
-                            break;
-                        case LINEAR_ACCELERATION_BITMASK_INDEX:
-                            motion::bno.getRawVectorData(Adafruit_BNO055::VECTOR_LINEARACCEL, buffer);
-                            size = 3;
-                            range = motion::ACCELEROMETER_RANGE;
-                            break;
-                        case ROTATION_RATE_BITMASK_INDEX:
-                            motion::bno.getRawVectorData(Adafruit_BNO055::VECTOR_GYROSCOPE, buffer);
-                            size = 3;
-                            range = motion::GYROSCOPE_RANGE;
-                            break;
-                        case MAGNETOMETER_BITMASK_INDEX:
-                            motion::bno.getRawVectorData(Adafruit_BNO055::VECTOR_MAGNETOMETER, buffer);
-                            size = 3;
-                            range = motion::MAGNETOMETER_RANGE;
-                            break;
-                        case QUATERNION_BITMASK_INDEX:
-                            motion::bno.getRawQuatData(buffer);
-                            size = 4;
-                            range = 1;
-                            break;
+                    switch (i)
+                    {
+                    case ACCELERATION_BITMASK_INDEX:
+#ifdef _MOTION_
+                        motion::bno.getRawVectorData(Adafruit_BNO055::VECTOR_ACCELEROMETER, buffer);
+                        size = 3;
+                        range = motion::ACCELEROMETER_RANGE;
+#endif
+                        break;
+                    case GRAVITY_BITMASK_INDEX:
+#ifdef _MOTION_
+                        motion::bno.getRawVectorData(Adafruit_BNO055::VECTOR_GRAVITY, buffer);
+                        size = 3;
+                        range = motion::ACCELEROMETER_RANGE;
+#endif
+                        break;
+                    case LINEAR_ACCELERATION_BITMASK_INDEX:
+#ifdef _MOTION_
+                        motion::bno.getRawVectorData(Adafruit_BNO055::VECTOR_LINEARACCEL, buffer);
+                        size = 3;
+                        range = motion::ACCELEROMETER_RANGE;
+#endif
+                        break;
+                    case ROTATION_RATE_BITMASK_INDEX:
+#ifdef _MOTION_
+                        motion::bno.getRawVectorData(Adafruit_BNO055::VECTOR_GYROSCOPE, buffer);
+                        size = 3;
+                        range = motion::GYROSCOPE_RANGE;
+#endif
+                        break;
+                    case MAGNETOMETER_BITMASK_INDEX:
+#ifdef _MOTION_
+                        motion::bno.getRawVectorData(Adafruit_BNO055::VECTOR_MAGNETOMETER, buffer);
+                        size = 3;
+                        range = motion::MAGNETOMETER_RANGE;
+#endif
+                        break;
+                    case QUATERNION_BITMASK_INDEX:
+#ifdef _MOTION_
+                        motion::bno.getRawQuatData(buffer);
+                        size = 4;
+                        range = 1;
+#endif
+                        break;
                     }
 
-                    for (uint8_t i = 0; i < size; i++) {
-                        tflInputTensor->data.f[(numberOfSamplesRead * sampleDataSize) + offset + i] = (float) buffer[i] / (float) range;
+                    for (uint8_t i = 0; i < size; i++)
+                    {
+                        tflInputTensor->data.f[(numberOfSamplesRead * sampleDataSize) + offset + i] = (float)buffer[i] / (float)range;
                     }
                     offset += size;
                 }
@@ -325,8 +344,10 @@ namespace tfLite
             }
         }
     }
-    void startCapturingSamples() {
-        if (isCapturingSamples) {
+    void startCapturingSamples()
+    {
+        if (isCapturingSamples)
+        {
             return;
         }
 
@@ -391,18 +412,20 @@ namespace tfLite
         }
 
         uint8_t *maxValueArray;
-        maxValueArray = reinterpret_cast<uint8_t*>(&maxValue);
+        maxValueArray = reinterpret_cast<uint8_t *>(&maxValue);
         uint8_t inferenceCharacteristicData[1 + sizeof(float)] = {maxIndex, maxValueArray[0], maxValueArray[1], maxValueArray[2], maxValueArray[3]};
 
         pInferenceCharacteristic->setValue(inferenceCharacteristicData, sizeof(inferenceCharacteristicData));
-        if (ble::isServerConnected) {
+        if (ble::isServerConnected)
+        {
             pInferenceCharacteristic->notify();
         }
 
         lastCaptureTime = currentTime;
     }
 
-    void stop() {
+    void stop()
+    {
         enabled = false;
         uint8_t pEnabledCharacteristicData[1] = {0};
         pEnabledCharacteristic->setValue(pEnabledCharacteristicData, sizeof(pEnabledCharacteristicData));

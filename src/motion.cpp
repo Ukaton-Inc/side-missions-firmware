@@ -6,7 +6,7 @@ namespace motion {
     bool isBnoAwake = false;
 
     const uint16_t calibration_delay_ms = 1000;
-    const uint8_t data_delay_ms = 20;
+    const uint16_t data_delay_ms = 20;
     const uint8_t data_base_offset = sizeof(uint8_t) + sizeof(unsigned long);
 
     BLECharacteristic *pCalibrationCharacteristic;
@@ -31,7 +31,7 @@ namespace motion {
         void onWrite(BLECharacteristic *pCharacteristic)
         {
             uint8_t length = pCharacteristic->m_value.getLength();
-            if (length == 6 * sizeof(uint16_t)) {
+            if (length == NUMBER_OF_DATA_TYPES * sizeof(uint16_t)) {
                 uint16_t *characteristicData = (uint16_t *) pCharacteristic->getData();
                 for (int i = 0; i < NUMBER_OF_DATA_TYPES; i++) {
                     delays[i] = characteristicData[i];
@@ -162,4 +162,4 @@ namespace motion {
             calibrationLoop();
         }
     }
-} // namespace imu
+} // namespace motion
