@@ -1,5 +1,6 @@
 #include "motion.h"
 #include "ble.h"
+#include "eepromUtils.h"
 
 namespace motion {
     Adafruit_BNO055 bno = Adafruit_BNO055(-1, 0x28);
@@ -8,11 +9,18 @@ namespace motion {
     const uint16_t calibration_delay_ms = 1000;
     const uint16_t data_delay_ms = 20;
     const uint8_t data_base_offset = sizeof(uint8_t) + sizeof(unsigned long);
+    bool wroteFullCalibration = false;
 
     BLECharacteristic *pCalibrationCharacteristic;
     uint8_t callibration[NUMBER_OF_CALIBRATION_TYPES];
     void updateCalibration() {
         bno.getCalibration(&callibration[0], &callibration[1], &callibration[2], &callibration[3]);
+        if (bno.isFullyCalibrated() && !wroteFullCalibration) {
+            bool saveSuccessful = saveToEEPROM();
+            if (saveSuccessful) {
+                wroteFullCalibration = true;
+            }
+        }
         pCalibrationCharacteristic->setValue((uint8_t *) callibration, sizeof(callibration));
         pCalibrationCharacteristic->notify();
     }
@@ -21,6 +29,25 @@ namespace motion {
         if (currentTime >= lastCalibrationLoopTime + calibration_delay_ms) {
             lastCalibrationLoopTime = currentTime - (currentTime % calibration_delay_ms);
             updateCalibration();
+        }
+    }
+
+    uint16_t eepromAddress;
+    adafruit_bno055_offsets_t calibrationData;
+    sensor_t sensor;
+
+    void loadFromEEPROM() {
+        EEPROM.get(eepromAddress, calibrationData);
+        bno.setSensorOffsets(calibrationData);
+    }
+    bool saveToEEPROM() {
+        bool readSuccessful = bno.getSensorOffsets(calibrationData);
+        if (readSuccessful) {
+            EEPROM.put(eepromAddress, calibrationData);
+            return EEPROM.commit();
+        }
+        else {
+            return readSuccessful;
         }
     }
 
@@ -125,6 +152,13 @@ namespace motion {
             Serial.println("No BNO055 detected");
         }
         delay(1000);
+        eepromAddress = eepromUtils::reserveSpace(sizeof(adafruit_bno055_offsets_t));
+        if (eepromUtils::firstInitialized) {
+            saveToEEPROM();
+        }
+        else {
+            loadFromEEPROM();
+        }
         bno.setExtCrystalUse(false);
         bno.enterSuspendMode();
 
@@ -138,6 +172,7 @@ namespace motion {
     }
 
     void start() {
+        loadFromEEPROM();
         if (!isBnoAwake) {
             bno.enterNormalMode();
             isBnoAwake = true;

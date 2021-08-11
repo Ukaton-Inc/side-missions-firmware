@@ -29,6 +29,10 @@ namespace motion
     extern unsigned long lastCalibrationLoopTime;
     void calibrationLoop();
 
+    extern uint16_t eepromAddress;
+    void loadFromEEPROM();
+    bool saveToEEPROM();
+
     typedef enum: uint16_t
     {
         ACCELEROMETER_RANGE = 4000 + 1000,
