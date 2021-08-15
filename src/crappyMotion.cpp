@@ -17,7 +17,7 @@ namespace crappyMotion
     {
         void onWrite(BLECharacteristic *pCharacteristic)
         {
-            uint8_t *characteristicData = pCharacteristic->getData();
+            uint8_t *characteristicData = (uint8_t *) pCharacteristic->getValue().data();
             shouldCalibrate = characteristicData[0] == 1;
         }
     };
@@ -58,10 +58,10 @@ namespace crappyMotion
     {
         void onWrite(BLECharacteristic *pCharacteristic)
         {
-            uint8_t length = pCharacteristic->m_value.getLength();
+            uint8_t length = pCharacteristic->getDataLength();
             if (length == NUMBER_OF_DATA_TYPES * sizeof(uint16_t))
             {
-                uint16_t *characteristicData = (uint16_t *)pCharacteristic->getData();
+                uint16_t *characteristicData = (uint16_t *) pCharacteristic->getValue().data();
                 for (int i = 0; i < NUMBER_OF_DATA_TYPES; i++)
                 {
                     delays[i] = characteristicData[i];
@@ -172,16 +172,16 @@ namespace crappyMotion
             Serial.println("MPU connection failed. Please check your connection with `connection_check` example.");
         }
 
-        pCalibrateCharacteristic = ble::createCharacteristic(GENERATE_UUID("2000"), BLECharacteristic::PROPERTY_WRITE, "calibrate imu");
+        pCalibrateCharacteristic = ble::createCharacteristic(GENERATE_UUID("2000"), NIMBLE_PROPERTY::WRITE, "calibrate imu");
         pCalibrateCharacteristic->setCallbacks(new CalibrateCharacteristicCallbacks());
 
-        pCalibrationStatusCharacteristic = ble::createCharacteristic(GENERATE_UUID("2001"), BLECharacteristic::PROPERTY_NOTIFY, "imu calibration status");
+        pCalibrationStatusCharacteristic = ble::createCharacteristic(GENERATE_UUID("2001"), NIMBLE_PROPERTY::NOTIFY, "imu calibration status");
 
-        pConfigurationCharacteristic = ble::createCharacteristic(GENERATE_UUID("2002"), BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE, "imu configuration");
+        pConfigurationCharacteristic = ble::createCharacteristic(GENERATE_UUID("2002"), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE, "imu configuration");
         pConfigurationCharacteristic->setValue((uint8_t *)delays, sizeof(delays));
         pConfigurationCharacteristic->setCallbacks(new ConfigurationCharacteristicCallbacks());
 
-        pDataCharacteristic = ble::createCharacteristic(GENERATE_UUID("2003"), BLECharacteristic::PROPERTY_NOTIFY, "imu data");
+        pDataCharacteristic = ble::createCharacteristic(GENERATE_UUID("2003"), NIMBLE_PROPERTY::NOTIFY, "imu data");
     }
     void stop() {
         memset(&delays, 0, sizeof(delays));

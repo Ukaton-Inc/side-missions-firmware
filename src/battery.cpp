@@ -27,7 +27,7 @@ namespace battery {
 
     void setup() {
         pBatteryService = ble::pServer->createService(BLEUUID((uint16_t)0x180F));
-        pBatteryLevelCharacteristic = ble::createCharacteristic(BLEUUID((uint16_t)0x2A19).toString().c_str(), BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY, "Battery Level", pBatteryService);
+        pBatteryLevelCharacteristic = ble::createCharacteristic(BLEUUID((uint16_t)0x2A19), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY, "Battery Level", pBatteryService);
         pBatteryService->start();
     }
     void loop() {

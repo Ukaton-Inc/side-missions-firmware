@@ -47,7 +47,7 @@ namespace tfLite
     {
         void onWrite(BLECharacteristic *pCharacteristic)
         {
-            uint8_t *data = pCharacteristic->getData();
+            uint8_t *data = (uint8_t *) pCharacteristic->getValue().data();
             enabled = data[0];
             Serial.print("set tflite enabled: ");
             Serial.println(enabled);
@@ -57,7 +57,7 @@ namespace tfLite
     {
         void onWrite(BLECharacteristic *pCharacteristic)
         {
-            uint8_t *data = pCharacteristic->getData();
+            uint8_t *data = (uint8_t *) pCharacteristic->getValue().data();
             modelType = data[0];
             Serial.print("set tflite model type: ");
             Serial.println(modelType);
@@ -67,7 +67,7 @@ namespace tfLite
     {
         void onWrite(BLECharacteristic *pCharacteristic)
         {
-            uint8_t *data = pCharacteristic->getData();
+            uint8_t *data = (uint8_t *) pCharacteristic->getValue().data();
             numberOfClasses = data[0];
             Serial.print("set tflite number of classes: ");
             Serial.println(numberOfClasses);
@@ -77,7 +77,7 @@ namespace tfLite
     {
         void onWrite(BLECharacteristic *pCharacteristic)
         {
-            uint16_t *data = (uint16_t *)pCharacteristic->getData();
+            uint16_t *data = (uint16_t *) pCharacteristic->getValue().data();
             dataTypesBitmask = data[0];
             Serial.print("set tflite data types: ");
             Serial.println(dataTypesBitmask);
@@ -87,7 +87,7 @@ namespace tfLite
     {
         void onWrite(BLECharacteristic *pCharacteristic)
         {
-            uint16_t *data = (uint16_t *)pCharacteristic->getData();
+            uint16_t *data = (uint16_t *) pCharacteristic->getValue().data();
             sampleRate = data[0];
             Serial.print("set tflite sample rate: ");
             Serial.println(sampleRate);
@@ -97,7 +97,7 @@ namespace tfLite
     {
         void onWrite(BLECharacteristic *pCharacteristic)
         {
-            uint16_t *data = (uint16_t *)pCharacteristic->getData();
+            uint16_t *data = (uint16_t *) pCharacteristic->getValue().data();
             numberOfSamples = data[0];
             Serial.print("set tflite number of samples: ");
             Serial.println(numberOfSamples);
@@ -107,7 +107,7 @@ namespace tfLite
     {
         void onWrite(BLECharacteristic *pCharacteristic)
         {
-            float *data = (float *)pCharacteristic->getData();
+            float *data = (float *) pCharacteristic->getValue().data();
             for (uint8_t i = 0; i < NUMBER_OF_THRESHOLDS; i++)
             {
                 thresholds[i] = data[i];
@@ -123,7 +123,7 @@ namespace tfLite
     {
         void onWrite(BLECharacteristic *pCharacteristic)
         {
-            uint16_t *data = (uint16_t *)pCharacteristic->getData();
+            uint16_t *data = (uint16_t *) pCharacteristic->getValue().data();
             captureDelay = data[0];
             Serial.print("set tflite capture delay: ");
             Serial.println(captureDelay);
@@ -133,7 +133,7 @@ namespace tfLite
     {
         void onWrite(BLECharacteristic *pCharacteristic)
         {
-            uint8_t *data = pCharacteristic->getData();
+            uint8_t *data = (uint8_t *) pCharacteristic->getValue().data();
             uint8_t makeInference = data[0];
             if (makeInference == 1)
             {
@@ -146,17 +146,17 @@ namespace tfLite
 
     void setup()
     {
-        pHasModelCharacteristic = ble::createCharacteristic(GENERATE_UUID("4000"), BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY, "Has TFlite Model");
-        pEnabledCharacteristic = ble::createCharacteristic(GENERATE_UUID("4001"), BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE, "Enabled TFLite");
-        pModelTypeCharacteristic = ble::createCharacteristic(GENERATE_UUID("4002"), BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE, "TFLite Model Type");
-        pNumberOfClassesCharacteristic = ble::createCharacteristic(GENERATE_UUID("4003"), BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE, "Number of TFLite Classes");
-        pDataTypesCharacteristic = ble::createCharacteristic(GENERATE_UUID("4004"), BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE, "TFLite Data Types");
-        pSampleRateCharacteristic = ble::createCharacteristic(GENERATE_UUID("4005"), BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE, "TFLite Sample Rate");
-        pNumberOfSamplesCharacteristic = ble::createCharacteristic(GENERATE_UUID("4006"), BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE, "Number of TFLite Samples");
-        pThresholdCharacteristic = ble::createCharacteristic(GENERATE_UUID("4007"), BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE, "TFLite Threshold");
-        pCaptureDelayCharacteristic = ble::createCharacteristic(GENERATE_UUID("4008"), BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE, "TFLite Capture Delay");
-        pInferenceCharacteristic = ble::createCharacteristic(GENERATE_UUID("4009"), BLECharacteristic::PROPERTY_NOTIFY, "TFlite Model Inference");
-        pMakeInferenceCharacteristic = ble::createCharacteristic(GENERATE_UUID("4010"), BLECharacteristic::PROPERTY_WRITE, "Make TFLite Model Inference");
+        pHasModelCharacteristic = ble::createCharacteristic(GENERATE_UUID("4000"), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY, "Has TFlite Model");
+        pEnabledCharacteristic = ble::createCharacteristic(GENERATE_UUID("4001"), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE, "Enabled TFLite");
+        pModelTypeCharacteristic = ble::createCharacteristic(GENERATE_UUID("4002"), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE, "TFLite Model Type");
+        pNumberOfClassesCharacteristic = ble::createCharacteristic(GENERATE_UUID("4003"), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE, "Number of TFLite Classes");
+        pDataTypesCharacteristic = ble::createCharacteristic(GENERATE_UUID("4004"), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE, "TFLite Data Types");
+        pSampleRateCharacteristic = ble::createCharacteristic(GENERATE_UUID("4005"), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE, "TFLite Sample Rate");
+        pNumberOfSamplesCharacteristic = ble::createCharacteristic(GENERATE_UUID("4006"), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE, "Number of TFLite Samples");
+        pThresholdCharacteristic = ble::createCharacteristic(GENERATE_UUID("4007"), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE, "TFLite Threshold");
+        pCaptureDelayCharacteristic = ble::createCharacteristic(GENERATE_UUID("4008"), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE, "TFLite Capture Delay");
+        pInferenceCharacteristic = ble::createCharacteristic(GENERATE_UUID("4009"), NIMBLE_PROPERTY::NOTIFY, "TFlite Model Inference");
+        pMakeInferenceCharacteristic = ble::createCharacteristic(GENERATE_UUID("4010"), NIMBLE_PROPERTY::WRITE, "Make TFLite Model Inference");
 
         pEnabledCharacteristic->setCallbacks(new EnabledCharacteristicCallbacks());
         pModelTypeCharacteristic->setCallbacks(new ModelTypeCharacteristicCallbacks());

@@ -1,6 +1,7 @@
 #include "name.h"
 #include "ble.h"
 #include "eepromUtils.h"
+#include "services/gap/ble_svc_gap.h"
 
 namespace name
 {
@@ -38,17 +39,17 @@ namespace name
             loadFromEEPROM();
         }
 
-        pCharacteristic = ble::createCharacteristic(GENERATE_UUID("1000"), BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE, "name");
+        pCharacteristic = ble::createCharacteristic(GENERATE_UUID("1000"), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE, "name");
         pCharacteristic->setCallbacks(new CharacteristicCallbacks());
         pCharacteristic->setValue(name);
-        ::esp_ble_gap_set_device_name(name.c_str());
+        ble_svc_gap_device_name_set(name.c_str());
     }
 
     void setName(char *newName)
     {
         if (strlen(newName) <= MAX_NAME_LENGTH) {
             name = newName;
-            ::esp_ble_gap_set_device_name(name.c_str());
+            ble_svc_gap_device_name_set(name.c_str());
             saveToEEPROM();
         }
         else {

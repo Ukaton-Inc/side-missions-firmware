@@ -12,10 +12,10 @@ namespace pressure
     {
         void onWrite(BLECharacteristic *pCharacteristic)
         {
-            uint8_t length = pCharacteristic->m_value.getLength();
+            uint8_t length = pCharacteristic->getDataLength();
             if (length == NUMBER_OF_DATA_TYPES * sizeof(uint16_t))
             {
-                uint16_t *characteristicData = (uint16_t *)pCharacteristic->getData();
+                uint16_t *characteristicData = (uint16_t *) pCharacteristic->getValue().data();
                 for (uint8_t i = 0; i < NUMBER_OF_DATA_TYPES; i++)
                 {
                     delays[i] = characteristicData[i];
@@ -298,11 +298,11 @@ namespace pressure
             sensorPositions[i][1] /= 265.069;
         }
 
-        pConfigurationCharacteristic = ble::createCharacteristic(GENERATE_UUID("5000"), BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE, "pressure configuration");
+        pConfigurationCharacteristic = ble::createCharacteristic(GENERATE_UUID("5000"), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE, "pressure configuration");
         pConfigurationCharacteristic->setValue((uint8_t *)delays, sizeof(delays));
         pConfigurationCharacteristic->setCallbacks(new ConfigurationCharacteristicCallbacks());
 
-        pDataCharacteristic = ble::createCharacteristic(GENERATE_UUID("5001"), BLECharacteristic::PROPERTY_NOTIFY, "pressure data");
+        pDataCharacteristic = ble::createCharacteristic(GENERATE_UUID("5001"), NIMBLE_PROPERTY::NOTIFY, "pressure data");
     }
     void stop()
     {

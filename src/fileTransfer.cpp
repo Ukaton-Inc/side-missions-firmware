@@ -34,8 +34,8 @@ namespace fileTransfer
                 return;
             }
 
-            uint8_t *data = pCharacteristic->getData();
-            size_t size = pCharacteristic->m_value.getLength();
+            uint8_t *data = (uint8_t *) pCharacteristic->getValue().data();
+            size_t size = pCharacteristic->getDataLength();
 
             const int32_t file_block_length = size;
             if (file_block_length > file_block_byte_count)
@@ -98,7 +98,7 @@ namespace fileTransfer
         void onWrite(BLECharacteristic *pCharacteristic)
         {
             uint8_t command_value;
-            uint8_t *command_value_data = pCharacteristic->getData();
+            uint8_t *command_value_data = (uint8_t *) pCharacteristic->getValue().data();
             command_value = command_value_data[0];
 
             Serial.print("set file transfer command: ");
@@ -125,7 +125,7 @@ namespace fileTransfer
     {
         void onWrite(BLECharacteristic *pCharacteristic)
         {
-            uint8_t *data = pCharacteristic->getData();
+            uint8_t *data = (uint8_t *) pCharacteristic->getValue().data();
             unsigned char rawFileTransferType = data[0];
             Serial.print("set file transfer type: ");
             Serial.println(rawFileTransferType);
@@ -138,14 +138,14 @@ namespace fileTransfer
         file_buffers[0] = (uint8_t *)malloc(file_maximum_byte_count * sizeof(uint8_t));
         file_buffers[1] = (uint8_t *)malloc(file_maximum_byte_count * sizeof(uint8_t));
 
-        pFileBlockCharacteristic = ble::createCharacteristic(GENERATE_UUID("3000"), BLECharacteristic::PROPERTY_WRITE, "File Block");
-        pFileLengthCharacteristic = ble::createCharacteristic(GENERATE_UUID("3001"), BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE, "File Length");
-        pFileMaximumLengthCharacteristic = ble::createCharacteristic(GENERATE_UUID("3002"), BLECharacteristic::PROPERTY_READ, "Maximum File Length");
-        pFileTransferTypeCharacteristic = ble::createCharacteristic(GENERATE_UUID("3003"), BLECharacteristic::PROPERTY_WRITE, "File Transfer Type");
-        pChecksumCharacteristic = ble::createCharacteristic(GENERATE_UUID("3004"), BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE, "File Checksum");
-        pCommandCharacteristic = ble::createCharacteristic(GENERATE_UUID("3005"), BLECharacteristic::PROPERTY_WRITE, "File Command");
-        pTransferStatusCharacteristic = ble::createCharacteristic(GENERATE_UUID("3006"), BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY, "File Transfer Status");
-        pErrorMessageCharacteristic = ble::createCharacteristic(GENERATE_UUID("3007"), BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY, "File Error Message");
+        pFileBlockCharacteristic = ble::createCharacteristic(GENERATE_UUID("3000"), NIMBLE_PROPERTY::WRITE, "File Block");
+        pFileLengthCharacteristic = ble::createCharacteristic(GENERATE_UUID("3001"), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE, "File Length");
+        pFileMaximumLengthCharacteristic = ble::createCharacteristic(GENERATE_UUID("3002"), NIMBLE_PROPERTY::READ, "Maximum File Length");
+        pFileTransferTypeCharacteristic = ble::createCharacteristic(GENERATE_UUID("3003"), NIMBLE_PROPERTY::WRITE, "File Transfer Type");
+        pChecksumCharacteristic = ble::createCharacteristic(GENERATE_UUID("3004"), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE, "File Checksum");
+        pCommandCharacteristic = ble::createCharacteristic(GENERATE_UUID("3005"), NIMBLE_PROPERTY::WRITE, "File Command");
+        pTransferStatusCharacteristic = ble::createCharacteristic(GENERATE_UUID("3006"), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY, "File Transfer Status");
+        pErrorMessageCharacteristic = ble::createCharacteristic(GENERATE_UUID("3007"), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY, "File Error Message");
 
         pFileBlockCharacteristic->setCallbacks(new FileBlockCharacteristicCallbacks());
         pFileTransferTypeCharacteristic->setCallbacks(new FileTransferTypeCharacteristicCallbacks());
@@ -172,7 +172,7 @@ namespace fileTransfer
             return;
         }
 
-        uint8_t *file_length_data = pFileLengthCharacteristic->getData();
+        uint8_t *file_length_data = (uint8_t *) pFileLengthCharacteristic->getValue().data();
         int32_t file_length_value = ((int32_t)file_length_data[0]) | (((int32_t)file_length_data[1])) << 8 | ((int32_t)file_length_data[2]) << 16 | ((int32_t)file_length_data[3]) << 24;
         if (file_length_value > file_maximum_byte_count)
         {
@@ -182,7 +182,7 @@ namespace fileTransfer
             return;
         }
 
-        uint8_t *in_progress_checksum_data = pChecksumCharacteristic->getData();
+        uint8_t *in_progress_checksum_data = (uint8_t *) pChecksumCharacteristic->getValue().data();
         in_progress_checksum = ((int32_t)in_progress_checksum_data[0]) | (((int32_t)in_progress_checksum_data[1])) << 8 | ((int32_t)in_progress_checksum_data[2]) << 16 | ((int32_t)in_progress_checksum_data[3]) << 24;
 
         int in_progress_file_buffer_index;
