@@ -8,6 +8,7 @@
 #if IS_INSOLE
     #include "crappyMotion.h"
     #include "pressure.h"
+    #include "weight.h"
 #else
     #include "motion.h"
     #include "tfLite.h"
@@ -24,6 +25,7 @@ void setup()
     battery::setup();
     #if IS_INSOLE
         pressure::setup();
+        weight::setup();
         crappyMotion::setup();
     #else
         motion::setup();
@@ -40,6 +42,7 @@ void loop()
     #if IS_INSOLE
         pressure::loop();
         crappyMotion::loop();
+        weight::loop();
     #else
         motion::loop();
         tfLite::loop();
