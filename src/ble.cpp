@@ -1,14 +1,6 @@
-#include "definitions.h"
 #include "ble.h"
-#include "name.h"
-#if IS_INSOLE
-#include "pressure.h"
-#include "crappyMotion.h"
-#else
-#include "motion.h"
-#include "tflite.h"
-#include "fileTransfer.h"
-#endif
+#include "sensors.h"
+#include "gestures.h"
 
 namespace ble
 {
@@ -20,8 +12,6 @@ namespace ble
     BLEAdvertising *pAdvertising;
     BLEAdvertisementData *pAdvertisementData;
 
-    BLECharacteristic *pErrorMessageCharacteristic;
-
     class ServerCallbacks : public BLEServerCallbacks
     {
         void onConnect(BLEServer *pServer)
@@ -29,9 +19,7 @@ namespace ble
             isServerConnected = true;
             Serial.println("connected");
 
-#ifdef _MOTION_
-            motion::start();
-#endif
+            sensors::start();
         };
 
         void onDisconnect(BLEServer *pServer)
@@ -39,32 +27,30 @@ namespace ble
             isServerConnected = false;
             Serial.println("disconnected");
 
-#ifdef _MOTION_
-            motion::stop();
-#endif
-#ifdef _CRAPPY_MOTION_
-            crappyMotion::stop();
-#endif
-#ifdef _PRESSURE_
-            pressure::stop();
-#endif
-#ifdef _TF_LITE_
-            tfLite::stop();
-#endif
-#ifdef _FILE_TRANSFER_
-            fileTransfer::cancelFileTransfer();
-#endif
+            sensors::stop();
+            gestures::stop();
         }
     };
 
     void setup()
     {
         BLEDevice::init(DEFAULT_BLE_NAME);
+        
         pServer = BLEDevice::createServer();
         pServer->setCallbacks(new ServerCallbacks());
-        pService = pServer->createService(BLEUUID(GENERATE_UUID("0000")), 256);
+        pService = pServer->createService(BLEUUID("0000fdd2-0000-1000-8000-00805f9b34fb"), 256);
 
         pAdvertising = pServer->getAdvertising();
+
+        String manufacturerData;
+        int manufacturerCode = 0x1601;
+        char m2 = (char)(manufacturerCode >> 8);
+        manufacturerCode <<= 8;
+        char m1 = (char)(manufacturerCode >> 8);
+        manufacturerData.concat(m1);
+        manufacturerData.concat(m2);
+
+        pAdvertising->setManufacturerData(manufacturerData.c_str());
         pAdvertising->addServiceUUID(pService->getUUID());
         pAdvertising->setScanResponse(true);
     }

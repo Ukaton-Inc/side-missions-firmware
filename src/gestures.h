@@ -1,6 +1,6 @@
 #pragma once
-#ifndef _TF_LITE_
-#define _TF_LITE_
+#ifndef _GESTURES_
+#define _GESTURES_
 
 #undef DEFAULT
 #include "tensorflow/lite/micro/all_ops_resolver.h"
@@ -10,13 +10,9 @@
 #include "tensorflow/lite/version.h"
 
 #include "ble.h"
-#include "definitions.h"
-#if IS_INSOLE
-    #include "crappyMotion.h"
-#else
-    #include "motion.h"
-#endif
-namespace tfLite
+#include "sensors.h"
+
+namespace gestures
 {
     extern bool isModelLoaded;
     extern uint8_t interpreterBuffer[sizeof(tflite::MicroInterpreter)];
@@ -61,14 +57,17 @@ namespace tfLite
 
     typedef enum: uint8_t
     {
-        CLASSIFICATION = 0,
-        REGRESSION,
-        NUMBER_OF_MODEL_TYPES = 2,
-    } ModelTypes;
+        DOUBLE_TAP = 129,
+        HEAD_NOD,
+        HEAD_SHAKE,
+        INPUT_GESTURE = 192,
+        AFFIRMATIVE,
+        NEGATIVE,
+        NUMBER_OF_GESTURES = 6,
+        NUMBER_OF_UNIQUE_GESTURES = 3
+    } Gestures;
 
     extern bool enabled;
-    extern uint8_t modelType;
-    extern uint8_t numberOfClasses;
     extern uint8_t dataTypesBitmask;
     extern uint16_t sampleRate;
     extern uint16_t numberOfSamples;
@@ -81,28 +80,15 @@ namespace tfLite
     extern unsigned long currentTime;
     extern unsigned long lastUpdateLoopTime;
     extern unsigned long lastCaptureTime;
-    
-    extern BLECharacteristic *pHasModelCharacteristic;
-    extern BLECharacteristic *pEnabledCharacteristic;
-    extern BLECharacteristic *pModelTypeCharacteristic;
-    extern BLECharacteristic *pNumberOfClassesCharacteristic;
-    extern BLECharacteristic *pDataTypesCharacteristic;
-    extern BLECharacteristic *pSampleRateCharacteristic;
-    extern BLECharacteristic *pNumberOfSamplesCharacteristic;
-    extern BLECharacteristic *pThresholdCharacteristic;
-    extern BLECharacteristic *pCaptureDelayCharacteristic;
-    extern BLECharacteristic *pInferenceCharacteristic;
-    extern BLECharacteristic *pMakeInferenceCharacteristic;
 
-    class EnabledCharacteristicCallbacks;
-    class ModelTypeCharacteristicCallbacks;
-    class NumberOfClassesCharacteristicCallbacks;
-    class DataTypesCharacteristicCallbacks;
-    class SampleRateCharacteristicCallbacks;
-    class NumberOfSamplesCharacteristicCallbacks;
-    class ThresholdCharacteristicCallbacks;
-    class CaptureDelayCharacteristicCallbacks;
-    class MakeInferenceCharacteristicCallbacks;
+    extern uint8_t information[NUMBER_OF_GESTURES * 3];
+    extern uint8_t configuration[NUMBER_OF_GESTURES * 2];
+    
+    extern BLECharacteristic *pInformationCharacteristic;
+    extern BLECharacteristic *pConfigurationCharacteristic;
+    extern BLECharacteristic *pDataCharacteristic;
+
+    class GestureConfigurationCharacteristicCallbacks;
 
     void setup();
     void loadModel(unsigned char model[]);
@@ -112,6 +98,6 @@ namespace tfLite
     void startCapturingSamples();
     void makeInference();
     void stop();
-} // namespace tfLite
+} // namespace gestures
 
-#endif // _TF_LITE_
+#endif // _GESTURES_
