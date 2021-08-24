@@ -1,50 +1,20 @@
 #include <Arduino.h>
 
-#include "definitions.h"
 #include "eepromUtils.h"
-#include "ble.h"
-#include "name.h"
-#include "battery.h"
-#if IS_INSOLE
-    #include "crappyMotion.h"
-    #include "pressure.h"
-    #include "weight.h"
-#else
-    #include "motion.h"
-    #include "tfLite.h"
-    #include "fileTransfer.h"
-#endif
+#include "motion.h"
+#include "hid.h"
 
 void setup()
 {
     Serial.begin(115200);
 
     eepromUtils::setup();
-    ble::setup();
-    name::setup();
-    battery::setup();
-    #if IS_INSOLE
-        pressure::setup();
-        weight::setup();
-        crappyMotion::setup();
-    #else
-        motion::setup();
-        tfLite::setup();
-        fileTransfer::setup();
-    #endif
-    
-    ble::start();
+    motion::setup();    
+    hid::setup();
 }
 
 void loop()
 {
-    battery::loop();
-    #if IS_INSOLE
-        pressure::loop();
-        crappyMotion::loop();
-        weight::loop();
-    #else
-        motion::loop();
-        tfLite::loop();
-    #endif
+    hid::loop();
+    motion::loop();
 }
