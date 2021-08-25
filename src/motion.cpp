@@ -1,6 +1,6 @@
 #include "motion.h"
-#include "hid.h"
 #include "eepromUtils.h"
+#include "websocketServer.h"
 
 namespace motion
 {
@@ -8,7 +8,7 @@ namespace motion
     bool isBnoAwake = false;
 
     const uint16_t calibration_delay_ms = 1000;
-    const uint16_t data_delay_ms = 20;
+    const uint16_t data_delay_ms = 40;
     bool wroteFullCalibration = false;
 
     uint8_t callibration[NUMBER_OF_CALIBRATION_TYPES];
@@ -60,34 +60,8 @@ namespace motion
     unsigned long lastDataLoopTime;
     void updateData()
     {
-        imu::Quaternion quaternion = bno.getQuat();
-        imu::Vector<3> euler = quaternion.toEuler();
-
-        // yaw increases as it turns right
-        double yaw = euler.x();
-        yaw += PI;
-        if (yaw > PI) {
-            yaw -= TWO_PI;
-        }
-
-        // roll increases as it tilts left
-        double roll = euler.y();
-
-        // pitch increases as it tilts forward
-        double pitch = euler.z();
-
-        Serial.print("roll: ");
-        Serial.print(roll);
-        Serial.print(", pitch: ");
-        Serial.print(pitch);
-        Serial.print(", yaw: ");
-        Serial.println(yaw);
-
-        int16_t x = 0;
-        int16_t y = 0;
-        // set x, y based on module orientation
-        hid::bleGamepad.setLeftThumb(x, y);
-        hid::bleGamepad.sendReport();
+        uint8_t data[3] = {1, 2, 3};
+        websocketServer::ws.binaryAll(data, sizeof(data));
     }
     void dataLoop()
     {
@@ -141,7 +115,7 @@ namespace motion
     {
         currentTime = millis();
 
-        if (hid::bleGamepad.isConnected())
+        if (isBnoAwake)
         {
             dataLoop();
             calibrationLoop();

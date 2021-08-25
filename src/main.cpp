@@ -2,7 +2,7 @@
 
 #include "eepromUtils.h"
 #include "motion.h"
-#include "hid.h"
+#include "websocketServer.h"
 
 void setup()
 {
@@ -10,11 +10,11 @@ void setup()
 
     eepromUtils::setup();
     motion::setup();    
-    hid::setup();
+    websocketServer::setup();
 }
 
 void loop()
 {
-    hid::loop();
     motion::loop();
+    websocketServer::loop();
 }
