@@ -3,7 +3,7 @@
 namespace eepromUtils
 {
     const uint16_t EEPROM_SIZE = 512;
-    const uint8_t EEPROM_SCHEMA = 2;
+    const uint8_t EEPROM_SCHEMA = 0;
 
     unsigned char schema;
     bool firstInitialized = false;
@@ -15,6 +15,8 @@ namespace eepromUtils
 
         schema = EEPROM.readUChar(0);
         firstInitialized = (schema != EEPROM_SCHEMA);
+        Serial.print("EEPROM first initialized? ");
+        Serial.println(firstInitialized);
         if (firstInitialized)
         {
             schema = EEPROM_SCHEMA;
