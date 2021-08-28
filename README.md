@@ -5,7 +5,7 @@ How to load to your Side Mission motion module:
 1. Open VSCode
 2. Install PlatformIO on VSCode
 3. Open this workspace
-4. [Change the name of your device in main.cpp](https://github.com/Ukaton-Inc/side-missions-firmware/blob/main/src/main.cpp#L1)
+4. [Change the name of your device in ble.h](https://github.com/Ukaton-Inc/side-missions-firmware/blob/main/src/ble.h#L17)
 5. Click the upload button on the bottom (looks like "->")
 6. After uploading, unplug the USB and plug it back in
 7. Test [here](https://ukaton-side-mission.glitch.me/visualization) to see if it works
