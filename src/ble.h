@@ -22,6 +22,7 @@ namespace ble
     constexpr uint8_t max_characteristic_value_length = 23;
 
     extern BLEServer *pServer;
+    extern unsigned long lastTimeConnected;
     class ServerCallbacks;
     extern BLEService *pService;
 

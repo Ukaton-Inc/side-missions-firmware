@@ -36,6 +36,7 @@ namespace eepromUtils
         }
         else {
             log_e("not enough space in EEPROM");
+            return EEPROM_SIZE;
         }
     }
 

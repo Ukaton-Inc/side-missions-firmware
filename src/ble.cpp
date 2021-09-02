@@ -22,6 +22,7 @@ namespace ble
 
     BLECharacteristic *pErrorMessageCharacteristic;
 
+    unsigned long lastTimeConnected = 0;
     class ServerCallbacks : public BLEServerCallbacks
     {
         void onConnect(BLEServer *pServer)
@@ -36,6 +37,7 @@ namespace ble
 
         void onDisconnect(BLEServer *pServer)
         {
+            lastTimeConnected = millis();
             isServerConnected = false;
             Serial.println("disconnected");
 

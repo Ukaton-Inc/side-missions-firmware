@@ -10,6 +10,7 @@
     #include "pressure.h"
     #include "weight.h"
 #else
+    #include "powerManagement.h"
     #include "motion.h"
     #include "tfLite.h"
     #include "fileTransfer.h"
@@ -28,6 +29,7 @@ void setup()
         weight::setup();
         crappyMotion::setup();
     #else
+        powerManagement::setup();
         motion::setup();
         tfLite::setup();
         fileTransfer::setup();
@@ -44,6 +46,7 @@ void loop()
         crappyMotion::loop();
         weight::loop();
     #else
+        powerManagement::loop();
         motion::loop();
         tfLite::loop();
     #endif
