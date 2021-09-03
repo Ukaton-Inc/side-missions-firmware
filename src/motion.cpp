@@ -237,6 +237,7 @@ Method to print the GPIO that triggered the wakeup
         bno.enableAnyMotion(128, 5);
         bno.enableInterruptsOnXYZ(ENABLE, ENABLE, ENABLE);
         bno.setExtCrystalUse(false);
+        bno.enterNormalMode();
         isBnoAwake = true;
 
         pCalibrationCharacteristic = ble::createCharacteristic(GENERATE_UUID("2000"), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY, "imu calibration");
