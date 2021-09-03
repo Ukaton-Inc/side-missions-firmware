@@ -35,11 +35,20 @@
 /** BNO055 ID **/
 #define BNO055_ID (0xA0)
 
+// For register flags
+#define ENABLE  1
+#define DISABLE 0
+
+// For slo/no motion interrupt flag
+#define NO_MOTION 1
+#define SLOW_MOTION 0
+
 /** Offsets registers **/
 #define NUM_BNO055_OFFSET_REGISTERS (22)
 
 /** A structure to represent offsets **/
-typedef struct {
+typedef struct
+{
   int16_t accel_offset_x; /**< x acceleration offset */
   int16_t accel_offset_y; /**< y acceleration offset */
   int16_t accel_offset_z; /**< z acceleration offset */
@@ -61,13 +70,12 @@ typedef struct {
  *  @brief  Class that stores state and functions for interacting with
  *          BNO055 Sensor
  */
-class Adafruit_BNO055 : public Adafruit_Sensor {
+class Adafruit_BNO055 : public Adafruit_Sensor
+{
 public:
   /** BNO055 Registers **/
-  typedef enum {
-    /* Page id register definition */
-    BNO055_PAGE_ID_ADDR = 0X07,
-
+  typedef enum
+  {
     /* PAGE0 REGISTER DEFINITION START*/
     BNO055_CHIP_ID_ADDR = 0x00,
     BNO055_ACCEL_REV_ID_ADDR = 0x01,
@@ -76,6 +84,9 @@ public:
     BNO055_SW_REV_ID_LSB_ADDR = 0x04,
     BNO055_SW_REV_ID_MSB_ADDR = 0x05,
     BNO055_BL_REV_ID_ADDR = 0X06,
+
+    /* Page id register definition */
+    BNO055_PAGE_ID_ADDR = 0X07,
 
     /* Accel data register */
     BNO055_ACCEL_DATA_X_LSB_ADDR = 0X08,
@@ -156,6 +167,8 @@ public:
     BNO055_PWR_MODE_ADDR = 0X3E,
 
     BNO055_SYS_TRIGGER_ADDR = 0X3F,
+    BNO055_SYS_TRIGGER_ADDR_RST_INT_MSK = 0X40,
+    BNO055_SYS_TRIGGER_ADDR_RST_INT_POS = 6,
     BNO055_TEMP_SOURCE_ADDR = 0X40,
 
     /* Axis remap registers */
@@ -210,18 +223,70 @@ public:
     ACCEL_RADIUS_LSB_ADDR = 0X67,
     ACCEL_RADIUS_MSB_ADDR = 0X68,
     MAG_RADIUS_LSB_ADDR = 0X69,
-    MAG_RADIUS_MSB_ADDR = 0X6A
+    MAG_RADIUS_MSB_ADDR = 0X6A,
+
+    /* PAGE1 REGISTER DEFINITION START*/
+    /* Interrupt mask register */
+    INT_MSK_ADDR = 0X0F,
+    INT_MSK_ACC_NM_MSK = 0X80,
+    INT_MSK_ACC_NM_POS = 7,
+    INT_MSK_ACC_AM_MSK = 0X40,
+    INT_MSK_ACC_AM_POS = 6,
+
+    /* Interrupt enabled register */
+    INT_EN_ADDR = 0X10,
+    INT_EN_ACC_NM_MSK = 0X80,
+    INT_EN_ACC_NM_POS = 7,
+    INT_EN_ACC_AM_MSK = 0X40,
+    INT_EN_ACC_AM_POS = 6,
+
+    /* Any Motion interrupt threshold register */
+    ACC_AM_THRES_ADDR = 0X11,
+    ACC_AM_THRES_MSK = 0XFF,
+    ACC_AM_THRES_POS = 0,
+
+    /* Acceleration interrupt settings register */
+    ACC_INT_Settings_ADDR = 0X12,
+    ACC_INT_Settings_ACC_X_MSK = 0X04,
+    ACC_INT_Settings_ACC_X_POS = 2,
+    ACC_INT_Settings_ACC_Y_MSK = 0X08,
+    ACC_INT_Settings_ACC_Y_POS = 3,
+    ACC_INT_Settings_ACC_Z_MSK = 0X10,
+    ACC_INT_Settings_ACC_Z_POS = 4,
+    ACC_INT_Settings_AM_DUR_MSK = 0x03,
+    ACC_INT_Settings_AM_DUR_POS = 0,
+
+    /* Slo/no motion interrupt threshold register */
+    ACC_NM_THRES_ADDR = 0X15,
+    ACC_NM_THRES_MSK = 0XFF,
+    ACC_NM_THRES_POS = 0,
+
+    /* Acceleration slo/mo interrupt settings register */
+    ACC_NM_SET_ADDR = 0X16,
+    ACC_NM_SET_SLOWNO_MSK = 0x01,
+    ACC_NM_SET_SLOWNO_POS = 0,
+    ACC_NM_SET_DUR_MSK = 0x7E,
+    ACC_NM_SET_DUR_POS = 1
   } adafruit_bno055_reg_t;
 
   /** BNO055 power settings */
-  typedef enum {
+  typedef enum
+  {
     POWER_MODE_NORMAL = 0X00,
     POWER_MODE_LOWPOWER = 0X01,
     POWER_MODE_SUSPEND = 0X02
   } adafruit_bno055_powermode_t;
 
+  typedef enum
+  {
+    /* Operation mode settings*/
+    PAGE_0 = 0X00,
+    PAGE_1 = 0X01
+  } adafruit_bno055_page_t;
+
   /** Operation mode settings **/
-  typedef enum {
+  typedef enum
+  {
     OPERATION_MODE_CONFIG = 0X00,
     OPERATION_MODE_ACCONLY = 0X01,
     OPERATION_MODE_MAGONLY = 0X02,
@@ -238,7 +303,8 @@ public:
   } adafruit_bno055_opmode_t;
 
   /** Remap settings **/
-  typedef enum {
+  typedef enum
+  {
     REMAP_CONFIG_P0 = 0x21,
     REMAP_CONFIG_P1 = 0x24, // default
     REMAP_CONFIG_P2 = 0x24,
@@ -250,7 +316,8 @@ public:
   } adafruit_bno055_axis_remap_config_t;
 
   /** Remap Signs **/
-  typedef enum {
+  typedef enum
+  {
     REMAP_SIGN_P0 = 0x04,
     REMAP_SIGN_P1 = 0x00, // default
     REMAP_SIGN_P2 = 0x06,
@@ -262,7 +329,8 @@ public:
   } adafruit_bno055_axis_remap_sign_t;
 
   /** A structure to represent revisions **/
-  typedef struct {
+  typedef struct
+  {
     uint8_t accel_rev; /**< acceleration rev */
     uint8_t mag_rev;   /**< magnetometer rev */
     uint8_t gyro_rev;  /**< gyroscrope rev */
@@ -271,7 +339,8 @@ public:
   } adafruit_bno055_rev_info_t;
 
   /** Vector Mappings **/
-  typedef enum {
+  typedef enum
+  {
     VECTOR_ACCELEROMETER = BNO055_ACCEL_DATA_X_LSB_ADDR,
     VECTOR_MAGNETOMETER = BNO055_MAG_DATA_X_LSB_ADDR,
     VECTOR_GYROSCOPE = BNO055_GYRO_DATA_X_LSB_ADDR,
@@ -284,6 +353,7 @@ public:
                   TwoWire *theWire = &Wire);
 
   bool begin(adafruit_bno055_opmode_t mode = OPERATION_MODE_NDOF);
+
   void setMode(adafruit_bno055_opmode_t mode);
   void setAxisRemap(adafruit_bno055_axis_remap_config_t remapcode);
   void setAxisSign(adafruit_bno055_axis_remap_sign_t remapsign);
@@ -295,9 +365,9 @@ public:
                       uint8_t *mag);
 
   imu::Vector<3> getVector(adafruit_vector_type_t vector_type);
-  void getRawVectorData(adafruit_vector_type_t vector_type, int16_t* buffer);
+  void getRawVectorData(adafruit_vector_type_t vector_type, int16_t *buffer);
   imu::Quaternion getQuat();
-  void getRawQuatData(int16_t* buffer);
+  void getRawQuatData(int16_t *buffer);
   int8_t getTemp();
 
   /* Adafruit_Sensor implementation */
@@ -312,21 +382,44 @@ public:
   void setSensorOffsets(const adafruit_bno055_offsets_t &offsets_type);
   bool isFullyCalibrated();
 
+  /* Interrupt Methods */
+  void resetInterrupts();
+  void enableInterruptsOnXYZ(uint8_t x, uint8_t y, uint8_t z);
+  void enableSlowNoMotion(uint8_t threshold, uint8_t duration, uint8_t motionType);
+  void disableSlowNoMotion();
+  void enableAnyMotion(uint8_t threshold, uint8_t duration);
+  void disableAnyMotion();
+
   /* Power managments functions */
   void enterSuspendMode();
   void enterNormalMode();
+  void enterLowPowerMode();
+  byte getPowerMode();
 
   bool readLen(adafruit_bno055_reg_t, byte *buffer, uint8_t len);
 
 private:
+  /* Acceleration Interrupt management methods */
+  void setInterruptEnableAccelNM(uint8_t enable);
+  void setInterruptMaskAccelNM(uint8_t enable);
+  void setInterruptEnableAccelAM(uint8_t enable);
+  void setInterruptMaskAccelAM(uint8_t enable);
+
+  /* Change the register page */
+  void setPage(adafruit_bno055_page_t page);
+
   byte read8(adafruit_bno055_reg_t);
   bool write8(adafruit_bno055_reg_t, byte value);
+
+  /* Set bitwise values in the registers */
+  uint8_t sliceValueIntoRegister(uint8_t value, uint8_t reg, uint8_t mask, uint8_t position);
 
   uint8_t _address;
   TwoWire *_wire;
 
   int32_t _sensorID;
   adafruit_bno055_opmode_t _mode;
+  adafruit_bno055_page_t _page;
 };
 
 #endif

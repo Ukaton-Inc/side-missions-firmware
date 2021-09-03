@@ -15,8 +15,6 @@ namespace eepromUtils
 
         schema = EEPROM.readUChar(0);
         firstInitialized = (schema != EEPROM_SCHEMA);
-        Serial.print("EEPROM first initialized? ");
-        Serial.println(firstInitialized);
         if (firstInitialized)
         {
             schema = EEPROM_SCHEMA;

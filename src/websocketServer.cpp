@@ -107,6 +107,7 @@ namespace websocketServer
         }
     }
 
+    unsigned long lastTimeConnected = 0;
     void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len)
     {
         switch (type)
@@ -154,6 +155,9 @@ namespace websocketServer
 
     void loop()
     {
+        if (ws.count() > 0) {
+            lastTimeConnected = millis();
+        }
         ws.cleanupClients();
     }
 } // namespace websocketServer

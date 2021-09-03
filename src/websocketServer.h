@@ -40,6 +40,7 @@ namespace websocketServer
         PRESSURE_DATA
     } MessageType;
 
+    extern unsigned long lastTimeConnected;
     extern AsyncWebServer server;
     extern AsyncWebSocket ws;
     void setup();

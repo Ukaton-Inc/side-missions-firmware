@@ -4,11 +4,17 @@
 
 #include <Adafruit_BNO055.h>
 #include <lwipopts.h>
+#include "driver/adc.h"
 
 namespace motion
 {
     extern Adafruit_BNO055 bno;
     extern bool isBnoAwake;
+
+    extern unsigned long lastTimeMoved;
+    constexpr auto interrupt_pin = GPIO_NUM_27;
+    extern bool didInterrupt;
+    void interruptCallback();
  
     extern const uint16_t calibration_delay_ms;
     typedef enum: uint8_t

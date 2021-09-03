@@ -44,7 +44,8 @@
  *          Wire object
  */
 Adafruit_BNO055::Adafruit_BNO055(int32_t sensorID, uint8_t address,
-                                 TwoWire *theWire) {
+                                 TwoWire *theWire)
+{
   _sensorID = sensorID;
   _address = address;
   _wire = theWire;
@@ -69,9 +70,10 @@ Adafruit_BNO055::Adafruit_BNO055(int32_t sensorID, uint8_t address,
  *            OPERATION_MODE_NDOF]
  *  @return true if process is successful
  */
-bool Adafruit_BNO055::begin(adafruit_bno055_opmode_t mode) {
+bool Adafruit_BNO055::begin(adafruit_bno055_opmode_t mode)
+{
 #if defined(ARDUINO_SAMD_ZERO) && (_address == BNO055_ADDRESS_A)
-#error                                                                         \
+#error \
     "On an arduino Zero, BNO055's ADR pin must be high. Fix that, then delete this line."
   _address = BNO055_ADDRESS_B;
 #endif
@@ -86,10 +88,12 @@ bool Adafruit_BNO055::begin(adafruit_bno055_opmode_t mode) {
 
   /* Make sure we have the right device */
   uint8_t id = read8(BNO055_CHIP_ID_ADDR);
-  if (id != BNO055_ID) {
+  if (id != BNO055_ID)
+  {
     delay(1000); // hold on for boot
     id = read8(BNO055_CHIP_ID_ADDR);
-    if (id != BNO055_ID) {
+    if (id != BNO055_ID)
+    {
       return false; // still not? ok bail
     }
   }
@@ -101,7 +105,8 @@ bool Adafruit_BNO055::begin(adafruit_bno055_opmode_t mode) {
   write8(BNO055_SYS_TRIGGER_ADDR, 0x20);
   /* Delay incrased to 30ms due to power issues https://tinyurl.com/y375z699 */
   delay(30);
-  while (read8(BNO055_CHIP_ID_ADDR) != BNO055_ID) {
+  while (read8(BNO055_CHIP_ID_ADDR) != BNO055_ID)
+  {
     delay(10);
   }
   delay(50);
@@ -139,6 +144,18 @@ bool Adafruit_BNO055::begin(adafruit_bno055_opmode_t mode) {
   return true;
 }
 
+/**************************************************************************/
+/*!
+ @brief  Puts the chip on the specified register page
+ */
+/**************************************************************************/
+void Adafruit_BNO055::setPage(adafruit_bno055_page_t page)
+{
+  _page = page;
+  write8(BNO055_PAGE_ID_ADDR, _page);
+  delay(30);
+}
+
 /*!
  *  @brief  Puts the chip in the specified operating mode
  *  @param  mode
@@ -157,7 +174,8 @@ bool Adafruit_BNO055::begin(adafruit_bno055_opmode_t mode) {
  *            OPERATION_MODE_NDOF_FMC_OFF,
  *            OPERATION_MODE_NDOF]
  */
-void Adafruit_BNO055::setMode(adafruit_bno055_opmode_t mode) {
+void Adafruit_BNO055::setMode(adafruit_bno055_opmode_t mode)
+{
   _mode = mode;
   write8(BNO055_OPR_MODE_ADDR, _mode);
   delay(30);
@@ -177,7 +195,8 @@ void Adafruit_BNO055::setMode(adafruit_bno055_opmode_t mode) {
  *           REMAP_CONFIG_P7]
  */
 void Adafruit_BNO055::setAxisRemap(
-    adafruit_bno055_axis_remap_config_t remapcode) {
+    adafruit_bno055_axis_remap_config_t remapcode)
+{
   adafruit_bno055_opmode_t modeback = _mode;
 
   setMode(OPERATION_MODE_CONFIG);
@@ -202,7 +221,8 @@ void Adafruit_BNO055::setAxisRemap(
  *           REMAP_SIGN_P6
  *           REMAP_SIGN_P7]
  */
-void Adafruit_BNO055::setAxisSign(adafruit_bno055_axis_remap_sign_t remapsign) {
+void Adafruit_BNO055::setAxisSign(adafruit_bno055_axis_remap_sign_t remapsign)
+{
   adafruit_bno055_opmode_t modeback = _mode;
 
   setMode(OPERATION_MODE_CONFIG);
@@ -219,22 +239,317 @@ void Adafruit_BNO055::setAxisSign(adafruit_bno055_axis_remap_sign_t remapsign) {
  *  @param  usextal
  *          use external crystal boolean
  */
-void Adafruit_BNO055::setExtCrystalUse(boolean usextal) {
+void Adafruit_BNO055::setExtCrystalUse(boolean usextal)
+{
   adafruit_bno055_opmode_t modeback = _mode;
 
   /* Switch to config mode (just in case since this is the default) */
   setMode(OPERATION_MODE_CONFIG);
   delay(25);
   write8(BNO055_PAGE_ID_ADDR, 0);
-  if (usextal) {
+  if (usextal)
+  {
     write8(BNO055_SYS_TRIGGER_ADDR, 0x80);
-  } else {
+  }
+  else
+  {
     write8(BNO055_SYS_TRIGGER_ADDR, 0x00);
   }
   delay(10);
   /* Set the requested operating mode (see section 3.3) */
   setMode(modeback);
   delay(20);
+}
+
+/**************************************************************************/
+/*!
+    @brief  Resets all interrupts
+ */
+/**************************************************************************/
+void Adafruit_BNO055::resetInterrupts()
+{
+  // Read to get the current settings
+  int8_t sysTrigger = (int8_t)(read8(BNO055_SYS_TRIGGER_ADDR));
+
+  // Set the flags as requested
+  sysTrigger = sliceValueIntoRegister(0x01, sysTrigger, BNO055_SYS_TRIGGER_ADDR_RST_INT_MSK, BNO055_SYS_TRIGGER_ADDR_RST_INT_POS);
+
+  // Write back the entire register
+  write8(BNO055_SYS_TRIGGER_ADDR, sysTrigger);
+  delay(30);
+}
+
+/**************************************************************************/
+/*!
+ @brief  Enables the interrupts on specific axes
+ */
+/**************************************************************************/
+void Adafruit_BNO055::enableInterruptsOnXYZ(uint8_t x, uint8_t y, uint8_t z)
+{
+  // TODO: this may be a good flow for any config register setting methods,
+  // so could be worth a look at the those methods for rework
+
+  // Need to be on page 0 to get into config mode
+  adafruit_bno055_page_t lastPage = _page;
+  if (lastPage != PAGE_0)
+    setPage(PAGE_0);
+
+  // Must be in config mode, so force it
+  adafruit_bno055_opmode_t lastMode = _mode;
+  setMode(OPERATION_MODE_CONFIG);
+
+  // Change to page 1 for interrupt settings
+  setPage(PAGE_1);
+
+  // Read to get the current settings
+  int8_t intSettings = (int8_t)(read8(ACC_INT_Settings_ADDR));
+
+  // Set the flags as requested--binary choice, so set or unset
+  intSettings = sliceValueIntoRegister(x ? 0x01 : 0x00, intSettings, ACC_INT_Settings_ACC_X_MSK, ACC_INT_Settings_ACC_X_POS);
+  intSettings = sliceValueIntoRegister(y ? 0x01 : 0x00, intSettings, ACC_INT_Settings_ACC_Y_MSK, ACC_INT_Settings_ACC_Y_POS);
+  intSettings = sliceValueIntoRegister(z ? 0x01 : 0x00, intSettings, ACC_INT_Settings_ACC_Z_MSK, ACC_INT_Settings_ACC_Z_POS);
+
+  // Write back the entire register
+  write8(ACC_INT_Settings_ADDR, intSettings);
+  delay(30);
+
+  // Return the mode to the last mode
+  setPage(PAGE_0);
+  setMode(lastMode);
+
+  // Change the page back to whichever it was initially
+  if (lastPage != PAGE_0)
+    setPage(lastPage);
+}
+
+/**************************************************************************/
+/*!
+ @brief  Enables the the slow/no motion interrupt, specifying settings
+ */
+/**************************************************************************/
+void Adafruit_BNO055::enableSlowNoMotion(uint8_t threshold, uint8_t duration, uint8_t motionType)
+{
+  // TODO: this may be a good flow for any config register setting methods,
+  // so could be worth a look at the those methods for rework
+
+  // Need to be on page 0 to get into config mode
+  adafruit_bno055_page_t lastPage = _page;
+  if (lastPage != PAGE_0)
+    setPage(PAGE_0);
+
+  // Must be in config mode, so force it
+  adafruit_bno055_opmode_t lastMode = _mode;
+  setMode(OPERATION_MODE_CONFIG);
+
+  // Change to page 1 for interrupt settings
+  setPage(PAGE_1);
+
+  // Enable which one: slow motion or no motion
+  // Set duration (bits 1-6), first
+  int8_t smnmSettings = (int8_t)(read8(ACC_NM_SET_ADDR));
+  smnmSettings = sliceValueIntoRegister(motionType, smnmSettings, ACC_NM_SET_SLOWNO_MSK, ACC_NM_SET_SLOWNO_POS);
+  smnmSettings = sliceValueIntoRegister(duration, smnmSettings, ACC_NM_SET_DUR_MSK, ACC_NM_SET_DUR_POS);
+  write8(ACC_NM_SET_ADDR, smnmSettings);
+
+  // Set the threshold (full byte)
+  int8_t threshSettings = (int8_t)(read8(ACC_NM_THRES_ADDR));
+  threshSettings = sliceValueIntoRegister(threshold, threshSettings, ACC_NM_THRES_MSK, ACC_NM_THRES_POS);
+  write8(ACC_NM_THRES_ADDR, threshSettings);
+
+  // Enable the interrupt
+  setInterruptEnableAccelNM(ENABLE);
+
+  // Fire on the pin
+  setInterruptMaskAccelNM(ENABLE);
+
+  delay(30);
+
+  // Return the mode to the last mode
+  setPage(PAGE_0);
+  setMode(lastMode);
+
+  // Change the page back to whichever it was initially
+  if (lastPage != PAGE_0)
+    setPage(lastPage);
+}
+
+/**************************************************************************/
+/*!
+ @brief  Disable the the slow/no motion interrupt
+ */
+/**************************************************************************/
+void Adafruit_BNO055::disableSlowNoMotion()
+{
+  // TODO: this may be a good flow for any config register setting methods,
+  // so could be worth a look at the those methods for rework
+
+  // Need to be on page 0 to get into config mode
+  adafruit_bno055_page_t lastPage = _page;
+  if (lastPage != PAGE_0)
+    setPage(PAGE_0);
+
+  // Must be in config mode, so force it
+  adafruit_bno055_opmode_t lastMode = _mode;
+  setMode(OPERATION_MODE_CONFIG);
+
+  // Change to page 1 for interrupt settings
+  setPage(PAGE_1);
+
+  // Disable the interrupt
+  setInterruptEnableAccelNM(DISABLE);
+
+  // Stop firing on the pin
+  setInterruptMaskAccelNM(DISABLE);
+
+  delay(30);
+
+  // Return the mode to the last mode
+  setPage(PAGE_0);
+  setMode(lastMode);
+
+  // Change the page back to whichever it was initially
+  if (lastPage != PAGE_0)
+    setPage(lastPage);
+}
+
+/**************************************************************************/
+/*!
+ @brief  Enables the the any motion interrupt, specifying settings
+ */
+/**************************************************************************/
+void Adafruit_BNO055::enableAnyMotion(uint8_t threshold, uint8_t duration)
+{
+  // TODO: this may be a good flow for any config register setting methods,
+  // so could be worth a look at the those methods for rework
+
+  // Need to be on page 0 to get into config mode
+  adafruit_bno055_page_t lastPage = _page;
+  if (lastPage != PAGE_0)
+    setPage(PAGE_0);
+
+  // Must be in config mode, so force it
+  adafruit_bno055_opmode_t lastMode = _mode;
+  setMode(OPERATION_MODE_CONFIG);
+
+  // Change to page 1 for interrupt settings
+  setPage(PAGE_1);
+
+  // Set duration (bits 1-6)
+  int8_t intSettings = (int8_t)(read8(ACC_INT_Settings_ADDR));
+  intSettings = sliceValueIntoRegister(duration, intSettings, ACC_INT_Settings_AM_DUR_MSK, ACC_INT_Settings_AM_DUR_POS);
+  write8(ACC_INT_Settings_ADDR, intSettings);
+
+  // Set the threshold (full byte)
+  int8_t threshSettings = (int8_t)(read8(ACC_AM_THRES_ADDR));
+  threshSettings = sliceValueIntoRegister(threshold, threshSettings, ACC_AM_THRES_MSK, ACC_AM_THRES_POS);
+  write8(ACC_AM_THRES_ADDR, threshSettings);
+
+  // Enable the interrupt
+  setInterruptEnableAccelAM(ENABLE);
+
+  // Fire on the pin
+  setInterruptMaskAccelAM(ENABLE);
+
+  delay(30);
+
+  // Return the mode to the last mode
+  setPage(PAGE_0);
+  setMode(lastMode);
+
+  // Change the page back to whichever it was initially
+  if (lastPage != PAGE_0)
+    setPage(lastPage);
+}
+
+/**************************************************************************/
+/*!
+ @brief  Disable the the any motion interrupt
+ */
+/**************************************************************************/
+void Adafruit_BNO055::disableAnyMotion()
+{
+  // TODO: this may be a good flow for any config register setting methods,
+  // so could be worth a look at the those methods for rework
+
+  // Need to be on page 0 to get into config mode
+  adafruit_bno055_page_t lastPage = _page;
+  if (lastPage != PAGE_0)
+    setPage(PAGE_0);
+
+  // Must be in config mode, so force it
+  adafruit_bno055_opmode_t lastMode = _mode;
+  setMode(OPERATION_MODE_CONFIG);
+
+  // Change to page 1 for interrupt settings
+  setPage(PAGE_1);
+
+  // Disable the interrupt
+  setInterruptEnableAccelAM(DISABLE);
+
+  // Stop firing on the pin
+  setInterruptMaskAccelAM(DISABLE);
+
+  delay(30);
+
+  // Return the mode to the last mode
+  setPage(PAGE_0);
+  setMode(lastMode);
+
+  // Change the page back to whichever it was initially
+  if (lastPage != PAGE_0)
+    setPage(lastPage);
+}
+
+/**************************************************************************/
+/*!
+ @brief  Enable or disable the slow/no motion interrupt entirely
+ */
+/**************************************************************************/
+// WARNING: ONLY CALL INSIDE PAGE/CONFIG WRAPPER
+void Adafruit_BNO055::setInterruptEnableAccelNM(uint8_t enable)
+{
+  int8_t intEnable = (int8_t)(read8(INT_EN_ADDR));
+  intEnable = sliceValueIntoRegister(enable, intEnable, INT_EN_ACC_NM_MSK, INT_EN_ACC_NM_POS);
+  write8(INT_EN_ADDR, intEnable);
+}
+
+/**************************************************************************/
+/*!
+ @brief  Tell slow/no interrupt to set pin and output or just set the output
+ */
+/**************************************************************************/
+// WARNING: ONLY CALL INSIDE PAGE/CONFIG WRAPPER
+void Adafruit_BNO055::setInterruptMaskAccelNM(uint8_t enable)
+{
+  int8_t intMask = (int8_t)(read8(INT_MSK_ADDR));
+  intMask = sliceValueIntoRegister(enable, intMask, INT_MSK_ACC_NM_MSK, INT_MSK_ACC_NM_POS);
+  write8(INT_MSK_ADDR, intMask);
+}
+
+/**************************************************************************/
+/*!
+ @brief  Enable or disable the any motion interrupt entirely
+ */
+/**************************************************************************/
+// WARNING: ONLY CALL INSIDE PAGE/CONFIG WRAPPER
+void Adafruit_BNO055::setInterruptEnableAccelAM(uint8_t enable)
+{
+  int8_t intEnable = (int8_t)(read8(INT_EN_ADDR));
+  intEnable = sliceValueIntoRegister(enable, intEnable, INT_EN_ACC_AM_MSK, INT_EN_ACC_AM_POS);
+  write8(INT_EN_ADDR, intEnable);
+}
+
+/**************************************************************************/
+/*!
+ @brief  Tell any motion interrupt to set pin and output or just set the output
+ */
+/**************************************************************************/
+// WARNING: ONLY CALL INSIDE PAGE/CONFIG WRAPPER
+void Adafruit_BNO055::setInterruptMaskAccelAM(uint8_t enable)
+{
+  int8_t intMask = (int8_t)(read8(INT_MSK_ADDR));
+  intMask = sliceValueIntoRegister(enable, intMask, INT_MSK_ACC_AM_MSK, INT_MSK_ACC_AM_POS);
+  write8(INT_MSK_ADDR, intMask);
 }
 
 /*!
@@ -248,7 +563,8 @@ void Adafruit_BNO055::setExtCrystalUse(boolean usextal) {
  */
 void Adafruit_BNO055::getSystemStatus(uint8_t *system_status,
                                       uint8_t *self_test_result,
-                                      uint8_t *system_error) {
+                                      uint8_t *system_error)
+{
   write8(BNO055_PAGE_ID_ADDR, 0);
 
   /* System Status (see section 4.3.58)
@@ -286,7 +602,7 @@ void Adafruit_BNO055::getSystemStatus(uint8_t *system_status,
      4 = Register map value out of range
      5 = Register map address out of range
      6 = Register map write error
-     7 = BNO low power mode not available for selected operat ion mode
+     7 = BNO low power mode not available for selected operation mode
      8 = Accelerometer power mode not available
      9 = Fusion algorithm configuration error
      A = Sensor configuration error
@@ -303,7 +619,8 @@ void Adafruit_BNO055::getSystemStatus(uint8_t *system_status,
  *  @param  info
  *          revision info
  */
-void Adafruit_BNO055::getRevInfo(adafruit_bno055_rev_info_t *info) {
+void Adafruit_BNO055::getRevInfo(adafruit_bno055_rev_info_t *info)
+{
   uint8_t a, b;
 
   memset(info, 0, sizeof(adafruit_bno055_rev_info_t));
@@ -341,18 +658,23 @@ void Adafruit_BNO055::getRevInfo(adafruit_bno055_rev_info_t *info) {
  *          Current calibration status of Magnetometer, read-only
  */
 void Adafruit_BNO055::getCalibration(uint8_t *sys, uint8_t *gyro,
-                                     uint8_t *accel, uint8_t *mag) {
+                                     uint8_t *accel, uint8_t *mag)
+{
   uint8_t calData = read8(BNO055_CALIB_STAT_ADDR);
-  if (sys != NULL) {
+  if (sys != NULL)
+  {
     *sys = (calData >> 6) & 0x03;
   }
-  if (gyro != NULL) {
+  if (gyro != NULL)
+  {
     *gyro = (calData >> 4) & 0x03;
   }
-  if (accel != NULL) {
+  if (accel != NULL)
+  {
     *accel = (calData >> 2) & 0x03;
   }
-  if (mag != NULL) {
+  if (mag != NULL)
+  {
     *mag = calData & 0x03;
   }
 }
@@ -361,7 +683,8 @@ void Adafruit_BNO055::getCalibration(uint8_t *sys, uint8_t *gyro,
  *  @brief  Gets the temperature in degrees celsius
  *  @return temperature in degrees celsius
  */
-int8_t Adafruit_BNO055::getTemp() {
+int8_t Adafruit_BNO055::getTemp()
+{
   int8_t temp = (int8_t)(read8(BNO055_TEMP_ADDR));
   return temp;
 }
@@ -378,7 +701,8 @@ int8_t Adafruit_BNO055::getTemp() {
  *            VECTOR_GRAVITY]
  *  @return  vector from specified source
  */
-imu::Vector<3> Adafruit_BNO055::getVector(adafruit_vector_type_t vector_type) {
+imu::Vector<3> Adafruit_BNO055::getVector(adafruit_vector_type_t vector_type)
+{
   imu::Vector<3> xyz;
   uint8_t buffer[6];
   memset(buffer, 0, 6);
@@ -397,7 +721,8 @@ imu::Vector<3> Adafruit_BNO055::getVector(adafruit_vector_type_t vector_type) {
    * Convert the value to an appropriate range (section 3.6.4)
    * and assign the value to the Vector type
    */
-  switch (vector_type) {
+  switch (vector_type)
+  {
   case VECTOR_MAGNETOMETER:
     /* 1uT = 16 LSB */
     xyz[0] = ((double)x) / 16.0;
@@ -451,18 +776,20 @@ imu::Vector<3> Adafruit_BNO055::getVector(adafruit_vector_type_t vector_type) {
  *            VECTOR_GRAVITY]
  *  @return  raw component values
  */
-void Adafruit_BNO055::getRawVectorData(adafruit_vector_type_t vector_type, int16_t* buffer) {
+void Adafruit_BNO055::getRawVectorData(adafruit_vector_type_t vector_type, int16_t *buffer)
+{
   memset(buffer, 0, 6);
 
   /* Read vector data (6 bytes) */
-  readLen((adafruit_bno055_reg_t)vector_type, (uint8_t *) buffer, 6);
+  readLen((adafruit_bno055_reg_t)vector_type, (uint8_t *)buffer, 6);
 }
 
 /*!
  *  @brief  Gets a quaternion reading from the specified source
  *  @return quaternion reading
  */
-imu::Quaternion Adafruit_BNO055::getQuat() {
+imu::Quaternion Adafruit_BNO055::getQuat()
+{
   uint8_t buffer[8];
   memset(buffer, 0, 8);
 
@@ -490,11 +817,12 @@ imu::Quaternion Adafruit_BNO055::getQuat() {
 /*!
  *  @brief  Gets a raq quaternion reading from the specified source
  */
-void Adafruit_BNO055::getRawQuatData(int16_t* buffer) {
+void Adafruit_BNO055::getRawQuatData(int16_t *buffer)
+{
   memset(buffer, 0, 8);
 
   /* Read quat data (8 bytes) */
-  readLen(BNO055_QUATERNION_DATA_W_LSB_ADDR, (uint8_t *) buffer, 8);
+  readLen(BNO055_QUATERNION_DATA_W_LSB_ADDR, (uint8_t *)buffer, 8);
 }
 
 /*!
@@ -502,7 +830,8 @@ void Adafruit_BNO055::getRawQuatData(int16_t* buffer) {
  *  @param  sensor
  *          Sensor description
  */
-void Adafruit_BNO055::getSensor(sensor_t *sensor) {
+void Adafruit_BNO055::getSensor(sensor_t *sensor)
+{
   /* Clear the sensor_t object */
   memset(sensor, 0, sizeof(sensor_t));
 
@@ -524,7 +853,8 @@ void Adafruit_BNO055::getSensor(sensor_t *sensor) {
  *          Event description
  *  @return always returns true
  */
-bool Adafruit_BNO055::getEvent(sensors_event_t *event) {
+bool Adafruit_BNO055::getEvent(sensors_event_t *event)
+{
   /* Clear the event */
   memset(event, 0, sizeof(sensors_event_t));
 
@@ -551,7 +881,8 @@ bool Adafruit_BNO055::getEvent(sensors_event_t *event) {
  *  @return always returns true
  */
 bool Adafruit_BNO055::getEvent(sensors_event_t *event,
-                               adafruit_vector_type_t vec_type) {
+                               adafruit_vector_type_t vec_type)
+{
   /* Clear the event */
   memset(event, 0, sizeof(sensors_event_t));
 
@@ -561,42 +892,53 @@ bool Adafruit_BNO055::getEvent(sensors_event_t *event,
 
   // read the data according to vec_type
   imu::Vector<3> vec;
-  if (vec_type == Adafruit_BNO055::VECTOR_LINEARACCEL) {
+  if (vec_type == Adafruit_BNO055::VECTOR_LINEARACCEL)
+  {
     event->type = SENSOR_TYPE_LINEAR_ACCELERATION;
     vec = getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
 
     event->acceleration.x = vec.x();
     event->acceleration.y = vec.y();
     event->acceleration.z = vec.z();
-  } else if (vec_type == Adafruit_BNO055::VECTOR_ACCELEROMETER) {
+  }
+  else if (vec_type == Adafruit_BNO055::VECTOR_ACCELEROMETER)
+  {
     event->type = SENSOR_TYPE_ACCELEROMETER;
     vec = getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
 
     event->acceleration.x = vec.x();
     event->acceleration.y = vec.y();
     event->acceleration.z = vec.z();
-  } else if (vec_type == Adafruit_BNO055::VECTOR_GRAVITY) {
+  }
+  else if (vec_type == Adafruit_BNO055::VECTOR_GRAVITY)
+  {
     event->type = SENSOR_TYPE_ACCELEROMETER;
     vec = getVector(Adafruit_BNO055::VECTOR_GRAVITY);
 
     event->acceleration.x = vec.x();
     event->acceleration.y = vec.y();
     event->acceleration.z = vec.z();
-  } else if (vec_type == Adafruit_BNO055::VECTOR_EULER) {
+  }
+  else if (vec_type == Adafruit_BNO055::VECTOR_EULER)
+  {
     event->type = SENSOR_TYPE_ORIENTATION;
     vec = getVector(Adafruit_BNO055::VECTOR_EULER);
 
     event->orientation.x = vec.x();
     event->orientation.y = vec.y();
     event->orientation.z = vec.z();
-  } else if (vec_type == Adafruit_BNO055::VECTOR_GYROSCOPE) {
+  }
+  else if (vec_type == Adafruit_BNO055::VECTOR_GYROSCOPE)
+  {
     event->type = SENSOR_TYPE_ROTATION_VECTOR;
     vec = getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
 
     event->gyro.x = vec.x();
     event->gyro.y = vec.y();
     event->gyro.z = vec.z();
-  } else if (vec_type == Adafruit_BNO055::VECTOR_MAGNETOMETER) {
+  }
+  else if (vec_type == Adafruit_BNO055::VECTOR_MAGNETOMETER)
+  {
     event->type = SENSOR_TYPE_MAGNETIC_FIELD;
     vec = getVector(Adafruit_BNO055::VECTOR_MAGNETOMETER);
 
@@ -614,8 +956,10 @@ bool Adafruit_BNO055::getEvent(sensors_event_t *event,
  *          Calibration offset (buffer size should be 22)
  *  @return true if read is successful
  */
-bool Adafruit_BNO055::getSensorOffsets(uint8_t *calibData) {
-  if (isFullyCalibrated()) {
+bool Adafruit_BNO055::getSensorOffsets(uint8_t *calibData)
+{
+  if (isFullyCalibrated())
+  {
     adafruit_bno055_opmode_t lastMode = _mode;
     setMode(OPERATION_MODE_CONFIG);
 
@@ -634,8 +978,10 @@ bool Adafruit_BNO055::getSensorOffsets(uint8_t *calibData) {
  *  @return true if read is successful
  */
 bool Adafruit_BNO055::getSensorOffsets(
-    adafruit_bno055_offsets_t &offsets_type) {
-  if (isFullyCalibrated()) {
+    adafruit_bno055_offsets_t &offsets_type)
+{
+  if (isFullyCalibrated())
+  {
     adafruit_bno055_opmode_t lastMode = _mode;
     setMode(OPERATION_MODE_CONFIG);
     delay(25);
@@ -693,7 +1039,8 @@ bool Adafruit_BNO055::getSensorOffsets(
  *  @param  calibData
  *          calibration data
  */
-void Adafruit_BNO055::setSensorOffsets(const uint8_t *calibData) {
+void Adafruit_BNO055::setSensorOffsets(const uint8_t *calibData)
+{
   adafruit_bno055_opmode_t lastMode = _mode;
   setMode(OPERATION_MODE_CONFIG);
   delay(25);
@@ -750,7 +1097,8 @@ void Adafruit_BNO055::setSensorOffsets(const uint8_t *calibData) {
  *          gyro_offset_z  = gyroscrope offset z
  */
 void Adafruit_BNO055::setSensorOffsets(
-    const adafruit_bno055_offsets_t &offsets_type) {
+    const adafruit_bno055_offsets_t &offsets_type)
+{
   adafruit_bno055_opmode_t lastMode = _mode;
   setMode(OPERATION_MODE_CONFIG);
   delay(25);
@@ -794,11 +1142,13 @@ void Adafruit_BNO055::setSensorOffsets(
  *  @brief  Checks of all cal status values are set to 3 (fully calibrated)
  *  @return status of calibration
  */
-bool Adafruit_BNO055::isFullyCalibrated() {
+bool Adafruit_BNO055::isFullyCalibrated()
+{
   uint8_t system, gyro, accel, mag;
   getCalibration(&system, &gyro, &accel, &mag);
 
-  switch (_mode) {
+  switch (_mode)
+  {
   case OPERATION_MODE_ACCONLY:
     return (accel == 3);
   case OPERATION_MODE_MAGONLY:
@@ -819,16 +1169,35 @@ bool Adafruit_BNO055::isFullyCalibrated() {
   }
 }
 
+
+
 /*!
- *  @brief  Enter Suspend mode (i.e., sleep)
+ *  @brief  Enter Low Power mode
  */
-void Adafruit_BNO055::enterSuspendMode() {
+void Adafruit_BNO055::enterLowPowerMode()
+{
   adafruit_bno055_opmode_t modeback = _mode;
 
   /* Switch to config mode (just in case since this is the default) */
   setMode(OPERATION_MODE_CONFIG);
   delay(25);
-  write8(BNO055_PWR_MODE_ADDR, 0x02);
+  write8(BNO055_PWR_MODE_ADDR, POWER_MODE_LOWPOWER);
+  /* Set the requested operating mode (see section 3.3) */
+  setMode(modeback);
+  delay(20);
+}
+
+/*!
+ *  @brief  Enter Suspend mode (i.e., sleep)
+ */
+void Adafruit_BNO055::enterSuspendMode()
+{
+  adafruit_bno055_opmode_t modeback = _mode;
+
+  /* Switch to config mode (just in case since this is the default) */
+  setMode(OPERATION_MODE_CONFIG);
+  delay(25);
+  write8(BNO055_PWR_MODE_ADDR, POWER_MODE_SUSPEND);
   /* Set the requested operating mode (see section 3.3) */
   setMode(modeback);
   delay(20);
@@ -837,22 +1206,31 @@ void Adafruit_BNO055::enterSuspendMode() {
 /*!
  *  @brief  Enter Normal mode (i.e., wake)
  */
-void Adafruit_BNO055::enterNormalMode() {
+void Adafruit_BNO055::enterNormalMode()
+{
   adafruit_bno055_opmode_t modeback = _mode;
 
   /* Switch to config mode (just in case since this is the default) */
   setMode(OPERATION_MODE_CONFIG);
   delay(25);
-  write8(BNO055_PWR_MODE_ADDR, 0x00);
+  write8(BNO055_PWR_MODE_ADDR, POWER_MODE_NORMAL);
   /* Set the requested operating mode (see section 3.3) */
   setMode(modeback);
   delay(20);
 }
 
 /*!
+ *  @brief  Get Power Mode
+ */
+byte Adafruit_BNO055::getPowerMode() {
+  return read8(BNO055_PWR_MODE_ADDR);
+}
+
+/*!
  *  @brief  Writes an 8 bit value over I2C
  */
-bool Adafruit_BNO055::write8(adafruit_bno055_reg_t reg, byte value) {
+bool Adafruit_BNO055::write8(adafruit_bno055_reg_t reg, byte value)
+{
   _wire->beginTransmission(_address);
 #if ARDUINO >= 100
   _wire->write((uint8_t)reg);
@@ -870,7 +1248,8 @@ bool Adafruit_BNO055::write8(adafruit_bno055_reg_t reg, byte value) {
 /*!
  *  @brief  Reads an 8 bit value over I2C
  */
-byte Adafruit_BNO055::read8(adafruit_bno055_reg_t reg) {
+byte Adafruit_BNO055::read8(adafruit_bno055_reg_t reg)
+{
   byte value = 0;
 
   _wire->beginTransmission(_address);
@@ -894,7 +1273,8 @@ byte Adafruit_BNO055::read8(adafruit_bno055_reg_t reg) {
  *  @brief  Reads the specified number of bytes over I2C
  */
 bool Adafruit_BNO055::readLen(adafruit_bno055_reg_t reg, byte *buffer,
-                              uint8_t len) {
+                              uint8_t len)
+{
   _wire->beginTransmission(_address);
 #if ARDUINO >= 100
   _wire->write((uint8_t)reg);
@@ -904,7 +1284,8 @@ bool Adafruit_BNO055::readLen(adafruit_bno055_reg_t reg, byte *buffer,
   _wire->endTransmission();
   _wire->requestFrom(_address, (byte)len);
 
-  for (uint8_t i = 0; i < len; i++) {
+  for (uint8_t i = 0; i < len; i++)
+  {
 #if ARDUINO >= 100
     buffer[i] = _wire->read();
 #else
@@ -914,4 +1295,14 @@ bool Adafruit_BNO055::readLen(adafruit_bno055_reg_t reg, byte *buffer,
 
   /* ToDo: Check for errors! */
   return true;
+}
+
+/**************************************************************************/
+/*!
+ @brief  Sets the value of the partial (or full) register
+ */
+/**************************************************************************/
+uint8_t Adafruit_BNO055::sliceValueIntoRegister(uint8_t value, uint8_t reg, uint8_t mask, uint8_t position)
+{
+  return (reg & ~mask) | ((value << position) & mask);
 }

@@ -6,6 +6,7 @@
 #include "motion.h"
 #include "pressure.h"
 #include "websocketServer.h"
+#include "powerManagement.h"
 
 void setup()
 {
@@ -17,6 +18,7 @@ void setup()
     motion::setup();    
     pressure::setup();    
     websocketServer::setup();
+    powerManagement::setup();
 }
 
 void loop()
@@ -25,4 +27,5 @@ void loop()
     motion::loop();
     pressure::loop();
     websocketServer::loop();
+    powerManagement::loop();
 }

@@ -9,6 +9,14 @@ namespace motion
 
     bool wroteFullCalibration = false;
 
+    unsigned long lastTimeMoved = 0;
+    bool didInterrupt = false;
+    void interruptCallback()
+    {
+        didInterrupt = true;
+        lastTimeMoved = millis();
+    }
+
     const uint16_t calibration_delay_ms = 1000;
     uint8_t callibration[NUMBER_OF_CALIBRATION_TYPES];
     void updateCalibration()
@@ -56,7 +64,7 @@ namespace motion
         }
     }
 
-    const uint16_t data_delay_ms = 40;
+    const uint16_t data_delay_ms = 20;
     uint16_t configuration[NUMBER_OF_DATA_TYPES] = {0};
     void setConfiguration(uint16_t *newConfiguration) {
         for (uint8_t dataType = 0; dataType < NUMBER_OF_DATA_TYPES; dataType++) {
@@ -158,8 +166,14 @@ namespace motion
         {
             loadFromEEPROM();
         }
+
+        pinMode(interrupt_pin, INPUT);
+        attachInterrupt(digitalPinToInterrupt(interrupt_pin), interruptCallback, RISING);
+        bno.enableAnyMotion(128, 5);
+        bno.enableInterruptsOnXYZ(ENABLE, ENABLE, ENABLE);
         bno.setExtCrystalUse(false);
-        bno.enterSuspendMode();
+        bno.enterNormalMode();
+        isBnoAwake = true;
     }
 
     void start()
@@ -167,16 +181,16 @@ namespace motion
         loadFromEEPROM();
         if (!isBnoAwake)
         {
-            bno.enterNormalMode();
-            isBnoAwake = true;
+            //bno.enterNormalMode();
+            //isBnoAwake = true;
         }
     }
     void stop()
     {
         if (isBnoAwake)
         {
-            bno.enterSuspendMode();
-            isBnoAwake = false;
+            //bno.enterSuspendMode();
+            //isBnoAwake = false;
 
             memset(&configuration, 0, sizeof(configuration));
         }
@@ -186,6 +200,12 @@ namespace motion
     void loop()
     {
         currentTime = millis();
+
+        if (didInterrupt)
+        {
+            didInterrupt = false;
+            bno.resetInterrupts();
+        }
 
         if (isBnoAwake && websocketServer::ws.count() > 0)
         {
