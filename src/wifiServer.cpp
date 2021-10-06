@@ -329,7 +329,7 @@ namespace wifiServer
                  macAddress[0], macAddress[1], macAddress[2], macAddress[3], macAddress[4], macAddress[5]);
         Serial.println(macAddressString);
 
-        EspNowPeer *peer = EspNowPeer::getPeerByMacAddress(macAddress);
+        auto peer = EspNowPeer::getPeerByMacAddress(macAddress);
         if (peer == nullptr)
         {
             peer = new EspNowPeer(macAddress);
