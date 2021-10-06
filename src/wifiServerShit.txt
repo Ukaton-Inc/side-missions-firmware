@@ -1,0 +1,938 @@
+#include "wifiServer.h"
+#include "name.h"
+#include "battery.h"
+
+namespace wifiServer
+{
+    const char *ssid = WIFI_SSID;
+    const char *password = WIFI_PASSWORD;
+
+    unsigned long currentMillis = 0;
+    constexpr unsigned long batteryLevelDelayMillis = 10 * 1000;
+
+    DeviceType deviceType = IS_INSOLE ? (IS_RIGHT_INSOLE ? DeviceType::RIGHT_INSOLE : DeviceType::LEFT_INSOLE) : DeviceType::MOTION_MODULE;
+
+    bool areMacAddressesEqual(const uint8_t *a, const uint8_t *b)
+    {
+        bool areEqual = true;
+        for (uint8_t i = 0; i < MAC_ADDRESS_SIZE && areEqual; i++)
+        {
+            areEqual = areEqual && (a[i] == b[i]);
+        }
+        return areEqual;
+    }
+
+    enum class EspNowPeerMessageType : uint8_t
+    {
+        PING,
+
+        BATTERY_LEVEL,
+
+        GET_NAME_REQUEST,
+        GET_NAME_RESPONSE,
+
+        SET_NAME_REQUEST,
+        SET_NAME_RESPONSE,
+
+        GET_TYPE_REQUEST,
+        GET_TYPE_RESPONSE,
+    };
+
+#if IS_ESP_NOW_RECEIVER
+
+    AsyncWebServer server(80);
+
+    // WEBSOCKETS
+    AsyncWebSocket webSocket("/ws");
+    bool isConnectedToClient()
+    {
+        return webSocket.count() > 0;
+    }
+    enum class WebSocketMessageType : uint8_t
+    {
+        GET_NUMBER_OF_DEVICES_REQUEST,
+        GET_NUMBER_OF_DEVICES_RESPONSE,
+
+        DEVICE_ADDED,
+        DEVICE_REMOVED,
+
+        GET_AVAILABILITY_REQUEST,
+        GET_AVAILABILITY_RESPONSE,
+
+        BATTERY_LEVEL,
+
+        GET_NAME_REQUEST,
+        GET_NAME_RESPONSE,
+
+        SET_NAME_REQUEST,
+        SET_NAME_RESPONSE,
+
+        GET_TYPE_REQUEST,
+        GET_TYPE_RESPONSE,
+
+        GET_MOTION_CONFIGURATION_REQUEST,
+        GET_MOTION_CONFIGURATION_RESPONSE,
+
+        SET_MOTION_CONFIGURATION_REQUEST,
+        SET_MOTION_CONFIGURATION_RESPONSE,
+
+        GET_MOTION_CALLIBRATION_DATA_REQUEST,
+        GET_MOTION_CALLIBRATION_DATA_RESPONSE,
+
+        GET_PRESSURE_CONFIGURATION_REQUEST,
+        GET_PRESSURE_CONFIGURATION_RESPONSE,
+
+        SET_PRESSURE_CONFIGURATION_REQUEST,
+        SET_PRESSURE_CONFIGURATION_RESPONSE,
+
+        DATA
+    };
+
+    enum class WebSocketErrorMessageType : uint8_t
+    {
+        NO_ERROR,
+        DEVICE_NOT_FOUND,
+        FAILED_TO_SEND,
+    };
+
+    uint8_t getNumberOfDevices()
+    {
+        return EspNowPeer::peers.size() + 1;
+    }
+    void handleWebSocketMessage(AsyncWebSocketClient *client, void *arg, uint8_t *data, size_t len)
+    {
+        AwsFrameInfo *info = (AwsFrameInfo *)arg;
+        if (info->final && info->index == 0 && info->len == len)
+        {
+            uint8_t dataOffset = 0;
+            WebSocketMessageType messageType;
+            std::vector<uint8_t> responseData;
+            while (dataOffset < len)
+            {
+                messageType = (WebSocketMessageType)data[dataOffset++];
+
+                switch (messageType)
+                {
+                case WebSocketMessageType::GET_NUMBER_OF_DEVICES_REQUEST:
+                {
+                    responseData.push_back((uint8_t)WebSocketMessageType::GET_NUMBER_OF_DEVICES_RESPONSE);
+                    responseData.push_back((uint8_t)WebSocketErrorMessageType::NO_ERROR);
+                    responseData.push_back(getNumberOfDevices());
+                }
+                break;
+                case WebSocketMessageType::GET_AVAILABILITY_REQUEST:
+                {
+                    uint8_t deviceIndex = data[dataOffset++];
+                    if (deviceIndex == 0)
+                    {
+                        responseData.push_back((uint8_t)WebSocketMessageType::GET_AVAILABILITY_RESPONSE);
+                        responseData.push_back(deviceIndex);
+                        responseData.push_back((uint8_t)WebSocketErrorMessageType::NO_ERROR);
+                        responseData.push_back(1);
+                    }
+                    else
+                    {
+                        try
+                        {
+                            EspNowPeer *peer = EspNowPeer::getPeerByDeviceIndex(deviceIndex);
+                            responseData.push_back((uint8_t)WebSocketMessageType::GET_AVAILABILITY_RESPONSE);
+                            responseData.push_back(deviceIndex);
+                            responseData.push_back((uint8_t)WebSocketErrorMessageType::NO_ERROR);
+                            responseData.push_back(peer->getAvailability() ? 1 : 0);
+                        }
+                        catch (const std::out_of_range &error)
+                        {
+                            responseData.push_back((uint8_t)WebSocketMessageType::GET_AVAILABILITY_RESPONSE);
+                            responseData.push_back(deviceIndex);
+                            responseData.push_back((uint8_t)WebSocketErrorMessageType::DEVICE_NOT_FOUND);
+                        }
+                    }
+                }
+                break;
+                case WebSocketMessageType::GET_NAME_REQUEST:
+                {
+                    uint8_t deviceIndex = data[dataOffset++];
+                    if (deviceIndex == 0)
+                    {
+                        responseData.push_back((uint8_t)WebSocketMessageType::GET_NAME_RESPONSE);
+                        responseData.push_back(deviceIndex);
+                        responseData.push_back((uint8_t)WebSocketErrorMessageType::NO_ERROR);
+                        const std::string *myName = name::getName();
+                        responseData.push_back(myName->length());
+                        responseData.insert(responseData.end(), myName->begin(), myName->end());
+                    }
+                    else
+                    {
+                        // FIX - cache response
+                        try
+                        {
+                            EspNowPeer *peer = EspNowPeer::getPeerByDeviceIndex(deviceIndex);
+                            uint8_t data[1];
+                            data[0] = (uint8_t)EspNowPeerMessageType::GET_NAME_REQUEST;
+                            esp_err_t result = peer->send();
+                            if (result == ESP_OK)
+                            {
+                                Serial.println("Successfully sent to peer");
+                            }
+                            else
+                            {
+                                Serial.println("Failed to send to peer");
+                                Serial.println(esp_err_to_name(result));
+                                responseData.push_back((uint8_t)WebSocketMessageType::GET_NAME_RESPONSE);
+                                responseData.push_back(deviceIndex);
+                                responseData.push_back((uint8_t)WebSocketErrorMessageType::FAILED_TO_SEND);
+                            }
+                        }
+                        catch (const std::out_of_range &error)
+                        {
+                            responseData.push_back((uint8_t)WebSocketMessageType::GET_NAME_RESPONSE);
+                            responseData.push_back(deviceIndex);
+                            responseData.push_back((uint8_t)WebSocketErrorMessageType::DEVICE_NOT_FOUND);
+                        }
+                    }
+                }
+                break;
+                case WebSocketMessageType::SET_NAME_REQUEST:
+                {
+                    uint8_t deviceIndex = data[dataOffset++];
+                    uint8_t nameLength = data[dataOffset++];
+                    uint8_t *newName = &data[dataOffset];
+                    dataOffset += nameLength;
+                    if (deviceIndex == 0)
+                    {
+                        responseData.push_back((uint8_t)WebSocketMessageType::SET_NAME_RESPONSE);
+                        responseData.push_back(deviceIndex);
+                        responseData.push_back((uint8_t)WebSocketErrorMessageType::NO_ERROR);
+                        name::setName((const char *)newName, nameLength);
+                        const std::string *myName = name::getName();
+                        responseData.push_back(myName->length());
+                        responseData.insert(responseData.end(), myName->begin(), myName->end());
+                    }
+                    else
+                    {
+                        try
+                        {
+                            EspNowPeer *peer = EspNowPeer::getPeerByDeviceIndex(deviceIndex);
+                            uint8_t data[1 + 1 + nameLength];
+                            data[0] = (uint8_t)EspNowPeerMessageType::SET_NAME_REQUEST;
+                            data[1] = nameLength;
+                            memcpy(&data[2], newName, nameLength);
+                            esp_err_t result = peer->send(data, sizeof(data));
+                            if (result == ESP_OK)
+                            {
+                                Serial.println("Successfully sent to peer");
+                            }
+                            else
+                            {
+                                Serial.println("Failed to send to peer");
+                                Serial.println(esp_err_to_name(result));
+                                responseData.push_back((uint8_t)WebSocketMessageType::SET_NAME_RESPONSE);
+                                responseData.push_back(deviceIndex);
+                                responseData.push_back((uint8_t)WebSocketErrorMessageType::FAILED_TO_SEND);
+                            }
+                        }
+                        catch (const std::out_of_range &error)
+                        {
+                            responseData.push_back((uint8_t)WebSocketMessageType::SET_NAME_RESPONSE);
+                            responseData.push_back(deviceIndex);
+                            responseData.push_back((uint8_t)WebSocketErrorMessageType::DEVICE_NOT_FOUND);
+                        }
+                    }
+                }
+                break;
+                case WebSocketMessageType::GET_TYPE_REQUEST:
+                {
+                    uint8_t deviceIndex = data[dataOffset++];
+                    if (deviceIndex == 0)
+                    {
+                        responseData.push_back((uint8_t)WebSocketMessageType::GET_TYPE_RESPONSE);
+                        responseData.push_back(deviceIndex);
+                        responseData.push_back((uint8_t)WebSocketErrorMessageType::NO_ERROR);
+                        responseData.push_back(deviceType);
+                    }
+                    else
+                    {
+                        // FIX - cache response
+                        try
+                        {
+                            EspNowPeer *peer = EspNowPeer::getPeerByDeviceIndex(deviceIndex);
+                            uint8_t data[1];
+                            data[0] = (uint8_t)EspNowPeerMessageType::GET_TYPE_REQUEST;
+                            esp_err_t result = peer->send(data, sizeof(data));
+                            if (result == ESP_OK)
+                            {
+                                Serial.println("Successfully sent to peer");
+                            }
+                            else
+                            {
+                                Serial.println("Failed to send to peer");
+                                Serial.println(esp_err_to_name(result));
+                                responseData.push_back((uint8_t)WebSocketMessageType::GET_TYPE_RESPONSE);
+                                responseData.push_back(deviceIndex);
+                                responseData.push_back((uint8_t)WebSocketErrorMessageType::FAILED_TO_SEND);
+                            }
+                        }
+                        catch (const std::out_of_range &error)
+                        {
+                            responseData.push_back((uint8_t)WebSocketMessageType::GET_TYPE_RESPONSE);
+                            responseData.push_back(deviceIndex);
+                            responseData.push_back((uint8_t)WebSocketErrorMessageType::DEVICE_NOT_FOUND);
+                        }
+                    }
+                }
+                break;
+                default:
+                    Serial.print("uncaught websocket message type: ");
+                    Serial.println((uint8_t)messageType);
+                    dataOffset = len;
+                    break;
+                }
+            }
+
+            if (responseData.size() > 0)
+            {
+                webSocket.binaryAll(responseData.data(), responseData.size());
+            }
+        }
+    }
+    void onWebSocketEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len)
+    {
+        switch (type)
+        {
+        case WS_EVT_CONNECT:
+            Serial.printf("WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
+            Serial.printf("There are currently %u clients\n", webSocket.count());
+            break;
+        case WS_EVT_DISCONNECT:
+            Serial.printf("WebSocket client #%u disconnected\n", client->id());
+            Serial.printf("There are currently %u clients\n", webSocket.count());
+            break;
+        case WS_EVT_DATA:
+            Serial.printf("Message of size #%u\n", len);
+            handleWebSocketMessage(client, arg, data, len);
+            break;
+        case WS_EVT_PONG:
+        case WS_EVT_ERROR:
+            break;
+        }
+    }
+
+    void webSocketLoop()
+    {
+        if (isConnectedToClient())
+        {
+            // FILL
+        }
+        webSocket.cleanupClients();
+    }
+
+    // EspNowPeer
+    std::vector<EspNowPeer *> EspNowPeer::peers;
+
+    EspNowPeer::EspNowPeer()
+    {
+        memset(&peerInfo, 0, sizeof(peerInfo));
+        peerInfo.encrypt = false;
+
+        index = peers.size();
+        peers.push_back(this);
+
+        Serial.print("created a new peer with index: ");
+        Serial.println(index);
+    };
+    EspNowPeer::~EspNowPeer()
+    {
+        disconnect();
+        delete motion;
+        delete pressure;
+        for (auto messageBufferIterator = messageBuffer.begin(); messageBufferIterator != messageBuffer.end(); messageBufferIterator++)
+        {
+            // FILL
+        }
+        for (auto peerIterator = peers.erase(peers.begin() + index); peerIterator != peers.end(); peerIterator++)
+        {
+            (*peerIterator)->index--;
+        }
+    }
+
+    esp_err_t EspNowPeer::connect()
+    {
+        return esp_now_add_peer(&peerInfo);
+    }
+    esp_err_t EspNowPeer::disconnect()
+    {
+        return esp_now_del_peer(macAddress);
+    }
+    bool EspNowPeer::isConnected()
+    {
+        return esp_now_is_peer_exist(macAddress);
+    }
+
+    void EspNowPeer::setMessageBuffer(MessageBufferKey key, uint8_t data, size_t size, bool overwrite) {
+        // FILL
+    }
+
+    esp_err_t EspNowPeer::send()
+    {
+        // FILL
+        // get array
+        // clear map
+        return esp_now_send(macAddress, data, len);
+    }
+    void EspNowPeer::sendAll() {
+        for (auto peerIterator = peers.begin(); peerIterator != peers.end(); peerIterator++)
+        {
+            if (areMacAddressesEqual((*peerIterator)->macAddress, macAddress))
+            {
+                (*peerIterator)->send();
+            }
+        }
+    }
+
+    esp_err_t EspNowPeer::ping()
+    {
+        // FILL
+        // add to buffer
+        uint8_t data[1]{0};
+        data[0] = (uint8_t)EspNowPeerMessageType::PING;
+        return send(data, sizeof(data));
+    }
+    void EspNowPeer::pingAll() {
+        for (auto peerIterator = peers.begin(); peerIterator != peers.end(); peerIterator++)
+        {
+            if (areMacAddressesEqual((*peerIterator)->macAddress, macAddress))
+            {
+                (*peerIterator)->ping();
+            }
+        }
+    }
+
+    uint8_t EspNowPeer::getIndex()
+    {
+        return index;
+    }
+
+    uint8_t EspNowPeer::getDeviceIndex()
+    {
+        return index + 1;
+    }
+
+    const uint8_t *EspNowPeer::getMacAddress()
+    {
+        return macAddress;
+    }
+    void EspNowPeer::setMacAddress(const uint8_t *_macAddress)
+    {
+        memcpy(macAddress, _macAddress, sizeof(macAddress));
+        memcpy(peerInfo.peer_addr, macAddress, sizeof(macAddress));
+
+        connect();
+    }
+    EspNowPeer *EspNowPeer::getPeerByMacAddress(const uint8_t *macAddress)
+    {
+        EspNowPeer *peer = nullptr;
+        for (auto peerIterator = peers.begin(); peerIterator != peers.end() && peer == nullptr; peerIterator++)
+        {
+            if (areMacAddressesEqual((*peerIterator)->macAddress, macAddress))
+            {
+                peer = (*peerIterator);
+            }
+        }
+        return peer;
+    }
+    EspNowPeer *EspNowPeer::getPeerByDeviceIndex(uint8_t deviceIndex)
+    {
+        try
+        {
+            EspNowPeer *peer = peers.at(deviceIndex - 1);
+            return peer;
+        }
+        catch (const std::out_of_range &error)
+        {
+            Serial.print("out of range error: ");
+            Serial.println(error.what());
+            throw error;
+        }
+    }
+
+    bool EspNowPeer::getAvailability()
+    {
+        return isAvailable;
+    }
+    void EspNowPeer::updateAvailability(bool _isAvailable)
+    {
+        isAvailable = _isAvailable;
+
+        Serial.print("ipdated availability: ");
+        Serial.println(isAvailable);
+    }
+
+    uint8_t EspNowPeer::getBatteryLevel()
+    {
+        return batteryLevel;
+    }
+    void EspNowPeer::updateBatteryLevel(uint8_t _batteryLevel)
+    {
+        batteryLevel = _batteryLevel;
+        didSendBatteryLevel = false;
+
+        Serial.print("updated battery level: ");
+        Serial.println(batteryLevel);
+    }
+
+    const std::string *EspNowPeer::getName()
+    {
+        return &name;
+    }
+
+    void EspNowPeer::updateName(const char *_name, size_t length)
+    {
+        name.assign(_name, length);
+        didUpdateNameAtLeastOnce = true;
+        Serial.print("updated name to: ");
+        Serial.println(name.c_str());
+    }
+
+    EspNowPeer::Motion::~Motion()
+    {
+        delete[] data;
+        delete dataTypes;
+    }
+    EspNowPeer::Pressure::~Pressure()
+    {
+        delete[] data;
+        delete dataTypes;
+    }
+    DeviceType EspNowPeer::getDeviceType()
+    {
+        return deviceType;
+    }
+    void EspNowPeer::updateDeviceType(DeviceType _deviceType)
+    {
+        deviceType = _deviceType;
+        didUpdateDeviceTypeAtLeastOnce = true;
+        Serial.print("updating device type: ");
+        Serial.println((uint8_t)deviceType);
+
+        delete motion;
+        motion = new Motion();
+
+        delete pressure;
+        if (deviceType == DeviceType::LEFT_INSOLE || deviceType == DeviceType::RIGHT_INSOLE)
+        {
+            pressure = new Pressure();
+        }
+    }
+
+    void EspNowPeer::loop()
+    {
+        pingLoop();
+        batteryLevelLoop();
+    }
+    unsigned long EspNowPeer::previousPingMillis = 0;
+    void EspNowPeer::pingLoop()
+    {
+        if (currentMillis - previousPingMillis >= pingInterval)
+        {
+            previousPingMillis = currentMillis;
+            for (auto peerIterator = peers.begin(); peerIterator != peers.end(); peerIterator++)
+            {
+                (*peerIterator)->ping();
+            }
+        }
+    }
+    unsigned long EspNowPeer::previousBatteryLevelMillis = 0;
+    void EspNowPeer::batteryLevelLoop()
+    {
+        if (currentMillis - previousBatteryLevelMillis >= batteryLevelInterval)
+        {
+            previousBatteryLevelMillis = currentMillis;
+            if (isConnectedToClient()) {
+                std::vector<uint8_t> batteryLevels;
+                for (auto peerIterator = peers.begin(); peerIterator != peers.end(); peerIterator++)
+                {
+                    EspNowPeer *peer = (*peerIterator);
+                    if (peer->isAvailable && peer->didSendBatteryLevel) {
+                        batteryLevels.push_back(peer->getIndex());
+                        batteryLevels.push_back(peer->getBatteryLevel());
+                        peer->didSendBatteryLevel = true;
+                    }
+                }
+                if (batteryLevels.size() > 0)
+                {
+                    webSocket.binaryAll(batteryLevels.data(), batteryLevels.size());
+                }
+            }
+        }
+    }
+
+    // ESP NOW
+    void onEspNowDataReceived(const uint8_t *macAddress, const uint8_t *incomingData, int len)
+    {
+        char macAddressString[18];
+        Serial.print("Packet received from: ");
+        snprintf(macAddressString, sizeof(macAddressString), "%02x:%02x:%02x:%02x:%02x:%02x",
+                 macAddress[0], macAddress[1], macAddress[2], macAddress[3], macAddress[4], macAddress[5]);
+        Serial.println(macAddressString);
+
+        std::vector<uint8_t> responseData;
+
+        EspNowPeer *peer = EspNowPeer::getPeerByMacAddress(macAddress);
+        if (peer == nullptr)
+        {
+            peer = new EspNowPeer();
+            peer->setMacAddress(macAddress);
+ 
+            if (isConnectedToClient())
+            {
+                responseData.push_back((uint8_t)WebSocketMessageType::DEVICE_ADDED);
+                responseData.push_back(peer->getDeviceIndex());
+                responseData.push_back(getNumberOfDevices());
+            }
+        }
+
+        if (!peer->isConnected())
+        {
+            esp_err_t peerConnectResult = peer->connect();
+            if (peerConnectResult == ESP_OK)
+            {
+                Serial.println("Successfully added peer");
+            }
+            else
+            {
+                Serial.println("Failed to add peer");
+                Serial.println(esp_err_to_name(peerConnectResult));
+            }
+        }
+        else
+        {
+            Serial.println("already connected to peer");
+        }
+
+        uint8_t incomingDataOffset = 0;
+        EspNowPeerMessageType messageType;
+        while (incomingDataOffset < len)
+        {
+            messageType = (EspNowPeerMessageType)incomingData[incomingDataOffset++];
+            switch (messageType)
+            {
+            case EspNowPeerMessageType::BATTERY_LEVEL:
+            {
+                uint8_t batteryLevel = incomingData[incomingDataOffset++];
+                peer->updateBatteryLevel(batteryLevel);
+            }
+            break;
+            case EspNowPeerMessageType::GET_NAME_RESPONSE:
+            case EspNowPeerMessageType::SET_NAME_RESPONSE:
+            {
+                uint8_t peerNameLength = incomingData[incomingDataOffset++];
+                const char *peerName = (const char *)&incomingData[incomingDataOffset];
+                incomingDataOffset += peerNameLength;
+                peer->updateName(peerName, peerNameLength);
+                WebSocketMessageType responseMessage = (messageType == EspNowPeerMessageType::GET_NAME_RESPONSE) ? WebSocketMessageType::GET_NAME_RESPONSE : WebSocketMessageType::SET_NAME_RESPONSE;
+                responseData.push_back((uint8_t)responseMessage);
+                responseData.push_back(peer->getDeviceIndex());
+                responseData.push_back((uint8_t)WebSocketErrorMessageType::NO_ERROR);
+                const std::string *peerNameString = peer->getName();
+                responseData.push_back(peerNameString->length());
+                responseData.insert(responseData.end(), peerNameString->begin(), peerNameString->end());
+            }
+            break;
+            case EspNowPeerMessageType::GET_TYPE_RESPONSE:
+            {
+                DeviceType peerDeviceType = (DeviceType)incomingData[incomingDataOffset++];
+                peer->updateDeviceType(peerDeviceType);
+                responseData.push_back((uint8_t)WebSocketMessageType::GET_TYPE_RESPONSE);
+                responseData.push_back(peer->getDeviceIndex());
+                responseData.push_back((uint8_t)WebSocketErrorMessageType::NO_ERROR);
+                responseData.push_back((uint8_t)peerDeviceType);
+            }
+            break;
+            default:
+                Serial.print("uncaught ESP-NOW message type: ");
+                Serial.println((uint8_t)messageType);
+                incomingDataOffset = len;
+                break;
+            }
+        }
+
+        if (responseData.size() > 0)
+        {
+            webSocket.binaryAll(responseData.data(), responseData.size());
+        }
+    }
+
+    void onEspNowDataSent(const uint8_t *macAddress, esp_now_send_status_t status)
+    {
+        Serial.print("\r\nLast Packet Send Status:\t");
+
+        EspNowPeer *peer = EspNowPeer::getPeerByMacAddress(macAddress);
+        if (peer != nullptr)
+        {
+            bool isAvailable;
+
+            if (status == ESP_NOW_SEND_SUCCESS)
+            {
+                Serial.println("Delivery Success");
+                isAvailable = true;
+            }
+            else
+            {
+                Serial.println("Delivery Fail");
+                isAvailable = false;
+            }
+
+            if (peer->getAvailability() != isAvailable)
+            {
+                Serial.print(isAvailable ? "Peer is Available: " : "Peer is Unavailable: ");
+                Serial.println(peer->getDeviceIndex());
+                peer->updateAvailability(isAvailable);
+                if (isConnectedToClient())
+                {
+                    uint8_t data[4];
+                    data[0] = (uint8_t)WebSocketMessageType::GET_AVAILABILITY_RESPONSE;
+                    data[1] = peer->getDeviceIndex();
+                    data[2] = (uint8_t)WebSocketErrorMessageType::NO_ERROR;
+                    data[3] = isAvailable ? 1 : 0;
+                    webSocket.binaryAll(data, sizeof(data));
+                }
+            }
+        }
+    }
+
+    void setup()
+    {
+        WiFi.mode(WIFI_AP_STA);
+
+        WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+        while (WiFi.status() != WL_CONNECTED)
+        {
+            delay(1000);
+            Serial.println("Setting as a Wi-Fi Station..");
+        }
+        Serial.print("Station IP Address: ");
+        Serial.println(WiFi.localIP());
+        Serial.print("Wi-Fi Channel: ");
+        Serial.println(WiFi.channel());
+        Serial.print("ESP Board MAC Address:  ");
+        Serial.println(WiFi.macAddress());
+
+        if (esp_now_init() != ESP_OK)
+        {
+            Serial.println("Error initializing ESP-NOW");
+            return;
+        }
+
+        esp_now_register_recv_cb(onEspNowDataReceived);
+        esp_now_register_send_cb(onEspNowDataSent);
+
+        webSocket.onEvent(onWebSocketEvent);
+        server.addHandler(&webSocket);
+
+        server.begin();
+    }
+
+    void loop()
+    {
+        currentMillis = millis();
+        EspNowPeer::loop();
+        webSocketLoop();
+    }
+
+#else
+    uint8_t receiverMacAddress[] = {0x4C, 0x11, 0xAE, 0x90, 0x9E, 0xA8};
+    bool isConnectedToReceiver = false;
+
+    bool _isConnectedToClient = false;
+    bool isConnectedToClient()
+    {
+        return isConnectedToReceiver && _isConnectedToClient;
+    }
+
+    int32_t getWiFiChannel(const char *ssid)
+    {
+        if (int32_t n = WiFi.scanNetworks())
+        {
+            for (uint8_t i = 0; i < n; i++)
+            {
+                if (!strcmp(ssid, WiFi.SSID(i).c_str()))
+                {
+                    return WiFi.channel(i);
+                }
+            }
+        }
+        return 0;
+    }
+
+    // ESP NOW
+    esp_err_t send(const uint8_t *data, size_t len)
+    {
+        return esp_now_send(receiverMacAddress, data, len);
+    }
+    void onEspNowDataReceived(const uint8_t *macAddress, const uint8_t *incomingData, int len)
+    {
+        char macAddressString[18];
+        Serial.print("Packet received from: ");
+        snprintf(macAddressString, sizeof(macAddressString), "%02x:%02x:%02x:%02x:%02x:%02x",
+                 macAddress[0], macAddress[1], macAddress[2], macAddress[3], macAddress[4], macAddress[5]);
+        Serial.println(macAddressString);
+
+        if (areMacAddressesEqual(macAddress, receiverMacAddress))
+        {
+            uint8_t incomingDataOffset = 0;
+            EspNowPeerMessageType messageType;
+            std::vector<uint8_t> responseData;
+            while (incomingDataOffset < len)
+            {
+                messageType = (EspNowPeerMessageType)incomingData[incomingDataOffset++];
+                switch (messageType)
+                {
+                case EspNowPeerMessageType::GET_NAME_REQUEST:
+                {
+                    const std::string *nameString = name::getName();
+                    responseData.push_back((uint8_t)EspNowPeerMessageType::GET_NAME_RESPONSE);
+                    responseData.push_back(nameString->length());
+                    responseData.insert(responseData.end(), nameString->begin(), nameString->end());
+                }
+                break;
+                case EspNowPeerMessageType::SET_NAME_REQUEST:
+                {
+                    uint8_t nameLength = incomingData[incomingDataOffset++];
+                    const uint8_t *newName = &incomingData[incomingDataOffset];
+                    incomingDataOffset += nameLength;
+                    name::setName((const char *)newName, nameLength);
+                    const std::string *nameString = name::getName();
+                    responseData.push_back((uint8_t)EspNowPeerMessageType::SET_NAME_RESPONSE);
+                    responseData.push_back(nameString->length());
+                    responseData.insert(responseData.end(), nameString->begin(), nameString->end());
+                }
+                break;
+                case EspNowPeerMessageType::GET_DEVICE_TYPE_REQUEST:
+                {
+                    responseData.push_back((uint8_t)EspNowPeerMessageType::GET_DEVICE_TYPE_RESPONSE);
+                    responseData.push_back((uint8_t)deviceType);
+                }
+                break;
+                default:
+                    Serial.print("uncaught ESP-NOW message type: ");
+                    Serial.println((uint8_t)messageType);
+                    incomingDataOffset = len;
+                    break;
+                }
+            }
+
+            if (responseData.size() > 0)
+            {
+                send(responseData.data(), responseData.size());
+            }
+        }
+    }
+    void onEspNowDataSent(const uint8_t *macAddress, esp_now_send_status_t status)
+    {
+        Serial.print("\r\nLast Packet Send Status:\t");
+        bool _isConnectedToReceiver;
+        if (status == ESP_NOW_SEND_SUCCESS)
+        {
+            Serial.println("Delivery Success");
+            _isConnectedToReceiver = true;
+        }
+        else
+        {
+            Serial.println("Delivery Fail");
+            _isConnectedToReceiver = false;
+        }
+
+        if (isConnectedToReceiver != _isConnectedToReceiver)
+        {
+            Serial.println(isConnectedToReceiver ? "Connected to receiver" : "Disconneted from receiver")
+                isConnectedToReceiver = _isConnectedToReceiver;
+        }
+    }
+
+    void setup()
+    {
+        WiFi.mode(WIFI_STA);
+
+        int32_t channel = getWiFiChannel(WIFI_SSID);
+
+        WiFi.printDiag(Serial); // Uncomment to verify channel number before
+        esp_wifi_set_promiscuous(true);
+        esp_wifi_set_channel(channel, WIFI_SECOND_CHAN_NONE);
+        esp_wifi_set_promiscuous(false);
+        WiFi.printDiag(Serial); // Uncomment to verify channel change after
+
+        if (esp_now_init() != ESP_OK)
+        {
+            Serial.println("Error initializing ESP-NOW");
+            return;
+        }
+
+        esp_now_register_recv_cb(onEspNowDataReceived);
+        esp_now_register_send_cb(onEspNowDataSent);
+
+        esp_now_peer_info_t espNowPeerInfo;
+        memset(&espNowPeerInfo, 0, sizeof(espNowPeerInfo));
+        memcpy(espNowPeerInfo.peer_addr, receiverMacAddress, MAC_ADDRESS_SIZE);
+        espNowPeerInfo.encrypt = false;
+
+        while (esp_now_add_peer(&espNowPeerInfo) != ESP_OK)
+        {
+            Serial.println("Failed to connect to receiver");
+            delay(2000);
+        }
+        Serial.println("added receiver");
+        isConnectedToReceiver = true;
+    }
+
+    unsigned long previousPingMillis = 0;
+    const long pingInterval = 3000;
+    void pingLoop()
+    {
+        if (currentMillis - previousPingMillis >= pingInterval)
+        {
+            previousPingMillis = currentMillis;
+
+            uint8_t pingData[1]{(uint8_t)EspNowPeerMessageType::PING};
+
+            esp_err_t result = esp_now_send(receiverMacAddress, pingData, sizeof(pingData));
+            if (result == ESP_OK)
+            {
+                Serial.println("Sent with success");
+            }
+            else
+            {
+                Serial.println("Error sending the data");
+            }
+        }
+    }
+
+    unsigned long previousBatteryLevelMillis = 0;
+    const long batteryLevelInterval = 10000;
+    void pingLoop()
+    {
+        if (currentMillis - previousBatteryLevelMillis >= batteryLevelInterval)
+        {
+            previousBatteryLevelMillis = currentMillis;
+
+            uint8_t batteryLevelData[2]{(uint8_t)EspNowPeerMessageType::BATTERY_LEVEL, battery::getBatteryLevel()};
+
+            esp_err_t result = esp_now_send(receiverMacAddress, batteryLevelData, sizeof(batteryLevelData));
+            if (result == ESP_OK)
+            {
+                Serial.println("Sent with success");
+            }
+            else
+            {
+                Serial.println("Error sending the data");
+            }
+        }
+    }
+
+    void loop()
+    {
+        currentMillis = millis();
+        batteryLevelLoop();
+        pingLoop();
+    }
+#endif
+} // namespace wifiServer

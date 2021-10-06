@@ -6,11 +6,7 @@
 
 namespace eepromUtils
 {
-    extern const uint16_t EEPROM_SIZE;
-    extern const uint8_t EEPROM_SCHEMA;
-    extern unsigned char schema;
     extern bool firstInitialized;
-    extern uint16_t freeAddress;
     void setup();
     uint16_t getAvailableSpace();
     uint16_t reserveSpace(uint16_t size);

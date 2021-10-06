@@ -2,8 +2,8 @@
 
 namespace eepromUtils
 {
-    const uint16_t EEPROM_SIZE = 512;
-    const uint8_t EEPROM_SCHEMA = 0;
+    const uint16_t MAX_SIZE = 512;
+    const uint8_t SCHEMA = 0;
 
     unsigned char schema;
     bool firstInitialized = false;
@@ -11,20 +11,20 @@ namespace eepromUtils
 
     void setup()
     {
-        EEPROM.begin(EEPROM_SIZE);
+        EEPROM.begin(MAX_SIZE);
 
         schema = EEPROM.readUChar(0);
-        firstInitialized = (schema != EEPROM_SCHEMA);
+        firstInitialized = (schema != SCHEMA);
         if (firstInitialized)
         {
-            schema = EEPROM_SCHEMA;
+            schema = SCHEMA;
             EEPROM.writeUChar(0, schema);
             EEPROM.commit();
         }
     }
 
     uint16_t getAvailableSpace() {
-        return EEPROM_SIZE - freeAddress;
+        return MAX_SIZE - freeAddress;
     }
 
     uint16_t reserveSpace(uint16_t size)

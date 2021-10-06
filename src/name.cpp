@@ -1,11 +1,12 @@
 #include "name.h"
 #include "eepromUtils.h"
+#include "definitions.h"
 
 namespace name
 {
     const uint8_t MAX_NAME_LENGTH = 30;
 
-    std::string name = "Ukaton Motion Module";
+    std::string name = NAME;
     uint16_t eepromAddress;
 
     void loadFromEEPROM() {
@@ -30,16 +31,24 @@ namespace name
         }
     }
 
-    void setName(char *newName)
+    const std::string *getName() {
+        return &name;
+    }
+    void setName(const char *newName, size_t length)
     {
-        if (strlen(newName) <= MAX_NAME_LENGTH) {
-            Serial.print("changing name to: ");
-            Serial.println(newName);
-            name = newName;
+        if (length <= MAX_NAME_LENGTH) {
+            name.assign(newName, length);
             saveToEEPROM();
+            Serial.print("changed name to: ");
+            Serial.println(name.c_str());
         }
         else {
             log_e("name's too long");
         }
+    }
+    void setName(const char *newName)
+    {
+        uint8_t length = strlen(newName);
+        setName(newName, length);
     }
 } // namespace name
