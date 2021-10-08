@@ -7,6 +7,7 @@
 #include "name.h"
 #include "motion.h"
 #include "wifiServer.h"
+#include "powerManagement.h"
 
 void setup()
 {
@@ -17,10 +18,12 @@ void setup()
     name::setup();
     motion::setup();
     wifiServer::setup();
+    powerManagement::setup();
 }
 
 void loop()
 {
     motion::loop();
     wifiServer::loop();
+    powerManagement::loop();
 }

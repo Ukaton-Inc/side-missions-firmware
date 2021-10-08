@@ -3,6 +3,7 @@
 #define _ESP_NOW_PEER_
 
 #include "definitions.h"
+#include "motion.h"
 
 #include <Arduino.h>
 
@@ -13,8 +14,13 @@
 
 class EspNowPeer
 {
-public:
+private:
     static std::vector<EspNowPeer *> peers;
+
+public:
+    static uint8_t getNumberOfPeers();
+
+public:
     EspNowPeer(const uint8_t *macAddress);
     ~EspNowPeer();
 
@@ -41,6 +47,13 @@ public:
     esp_err_t disconnect();
     bool isConnected();
 
+public:
+    void onClientConnection();
+    static void OnClientConnection();
+
+    void onClientDisconnection();
+    static void OnClientDisconnection();
+
 private:
     esp_now_peer_info_t peerInfo;
 
@@ -53,11 +66,12 @@ public:
 
 private:
     uint8_t batteryLevel = 0;
+    bool didUpdateBatteryLevelAtLeastOnce = false;
+    bool didSendBatteryLevel = false;
 
 public:
     uint8_t getBatteryLevel();
     void updateBatteryLevel(uint8_t batteryLevel);
-    bool didSendBatteryLevel = false;
 
 private:
     std::string name;
@@ -81,14 +95,20 @@ private:
     public:
         ~Motion();
 
+    public:
+        uint8_t calibration[(uint8_t)motion::CalibrationType::COUNT];
+        uint8_t onCalibration(const uint8_t *incomingData, uint8_t incomingDataOffset);
+        void updateCalibration(const uint8_t *calibration);
+        bool didUpdateCalibrationAtLeastOnce = false;
+        bool didSendCalibration = false;
+
     private:
-        uint16_t configuration[6]{0}; // FIX - replace with motion::NUMBER_OF_DATA_TYPES
-        uint8_t calibration[4]{0};    // FIX - replace with motion::NUMBER_OF_CALIBRATION_TYPES
+        uint16_t configuration[(uint8_t)motion::DataType::COUNT];
         uint8_t *data = nullptr;
         uint8_t dataSize = 0;
         uint8_t *dataTypes = nullptr;
     };
-    Motion *motion = nullptr;
+    Motion motion;
 
     class Pressure
     {
@@ -119,6 +139,12 @@ private:
 public:
     void ping();
     static void pingAll();
+    static void pingLoop();
+
+private:
+    uint8_t onBatteryLevel(const uint8_t *incomingData, uint8_t incomingDataOffset);
+    uint8_t onName(const uint8_t *incomingData, uint8_t incomingDataOffset, wifiServer::MessageType messageType);
+    uint8_t onType(const uint8_t *incomingData, uint8_t incomingDataOffset);
 
 public:
     void onMessage(const uint8_t *incomingData, int len);
@@ -127,8 +153,13 @@ private:
     void batteryLevelLoop();
 
 public:
-    static void pingLoop();
     static void batteryLevelsLoop();
+
+private:
+    void motionCalibrationLoop();
+
+public:
+    static void motionCalibrationsLoop();
 };
 
 #endif // _ESP_NOW_PEER_

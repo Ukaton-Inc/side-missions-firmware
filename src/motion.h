@@ -2,6 +2,7 @@
 #ifndef _MOTION_
 #define _MOTION_
 
+#include <Adafruit_BNO055.h>
 #include "driver/adc.h"
 
 namespace motion
@@ -26,6 +27,8 @@ namespace motion
         COUNT
     };
 
+    extern Adafruit_BNO055 bno;
+
     void setup();
     void loadFromEEPROM();
     bool saveToEEPROM();
@@ -33,6 +36,9 @@ namespace motion
     void loop();
 
     constexpr auto interrupt_pin = GPIO_NUM_27;
+    extern unsigned long lastTimeMoved;
+
+    extern uint8_t calibration[(uint8_t) CalibrationType::COUNT];
 } // namespace motion
 
 #endif // _MOTION_

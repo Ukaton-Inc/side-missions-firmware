@@ -1,6 +1,7 @@
 #include "wifiServer.h"
 #include "name.h"
 #include "battery.h"
+#include "motion.h"
 
 #include <esp_now.h>
 #include <esp_wifi.h>
@@ -13,8 +14,15 @@ namespace wifiServer
     const char *password = WIFI_PASSWORD;
 
     unsigned long currentMillis = 0;
+    unsigned long lastTimeConnected = 0;
+
+    bool sentClientNumberOfDevices = false;
+
     unsigned long previousBatteryLevelMillis = 0;
     const long batteryLevelInterval = 20000;
+
+    unsigned long previousMotionCalibrationMillis = 0;
+    const long motionCalibrationInterval = 1000;
 
     DeviceType deviceType = IS_INSOLE ? (IS_RIGHT_INSOLE ? DeviceType::RIGHT_INSOLE : DeviceType::LEFT_INSOLE) : DeviceType::MOTION_MODULE;
 
@@ -32,7 +40,6 @@ namespace wifiServer
 
     AsyncWebServer server(80);
 
-    // WEBSOCKETS
     AsyncWebSocket webSocket("/ws");
 
     bool isConnectedToClient()
@@ -42,12 +49,161 @@ namespace wifiServer
 
     uint8_t getNumberOfDevices()
     {
-        return EspNowPeer::peers.size() + 1;
+        return EspNowPeer::getNumberOfPeers() + 1;
     }
 
     std::map<MessageType, std::vector<uint8_t>> clientMessageMap;
     std::map<uint8_t, std::map<MessageType, std::vector<uint8_t>>> deviceClientMessageMaps;
     bool shouldSendToClient = false;
+
+    void onClientConnection()
+    {
+        EspNowPeer::OnClientConnection();
+    }
+    void onClientDisconnection()
+    {
+        EspNowPeer::OnClientDisconnection();
+        sentClientNumberOfDevices = false;
+    }
+
+    void onClientRequestNumberOfDevices()
+    {
+        uint8_t numberOfDevices = getNumberOfDevices();
+        std::vector<uint8_t> data;
+        data.push_back((uint8_t)ErrorMessageType::NO_ERROR);
+        data.push_back(numberOfDevices);
+        data.push_back(1); // receiver is always available
+        for (uint8_t deviceIndex = 1; deviceIndex < numberOfDevices; deviceIndex++)
+        {
+            auto peer = EspNowPeer::getPeerByDeviceIndex(deviceIndex);
+            data.push_back(peer->getAvailability() ? 1 : 0);
+        }
+        clientMessageMap[MessageType::GET_NUMBER_OF_DEVICES] = data;
+        sentClientNumberOfDevices = true;
+    }
+    uint8_t onClientRequestGetName(uint8_t *data, uint8_t dataOffset)
+    {
+        uint8_t deviceIndex = data[dataOffset++];
+        if (deviceIndex == 0)
+        {
+            auto myName = name::getName();
+
+            std::vector<uint8_t> data;
+            data.push_back((uint8_t)ErrorMessageType::NO_ERROR);
+            data.push_back(myName->length());
+            data.insert(data.end(), myName->begin(), myName->end());
+            deviceClientMessageMaps[deviceIndex][MessageType::GET_NAME] = data;
+        }
+        else
+        {
+            try
+            {
+                auto peer = EspNowPeer::getPeerByDeviceIndex(deviceIndex);
+                if (peer->didUpdateNameAtLeastOnce)
+                {
+                    if (deviceClientMessageMaps[deviceIndex].count(MessageType::SET_NAME) == 0)
+                    {
+                        std::vector<uint8_t> data;
+                        data.push_back((uint8_t)ErrorMessageType::NO_ERROR);
+                        auto peerName = peer->getName();
+                        data.push_back(peerName->length());
+                        data.insert(data.end(), peerName->begin(), peerName->end());
+                        deviceClientMessageMaps[deviceIndex][MessageType::GET_NAME] = data;
+                    }
+                }
+                else
+                {
+                    if (peer->messageMap.count(MessageType::SET_NAME) == 0)
+                    {
+                        peer->messageMap[MessageType::GET_NAME];
+                    }
+                }
+            }
+            catch (const std::out_of_range &error)
+            {
+                uint8_t data[1];
+                data[0] = (uint8_t)ErrorMessageType::DEVICE_NOT_FOUND;
+                deviceClientMessageMaps[deviceIndex][MessageType::GET_NAME].assign(data, data + sizeof(data));
+            }
+        }
+
+        return dataOffset;
+    }
+    uint8_t onClientRequestSetName(uint8_t *data, uint8_t dataOffset)
+    {
+        uint8_t deviceIndex = data[dataOffset++];
+        uint8_t nameLength = data[dataOffset++];
+        const char *newName = (char *)&data[dataOffset];
+        dataOffset += nameLength;
+        if (deviceIndex == 0)
+        {
+            name::setName(newName, nameLength);
+            const std::string *myName = name::getName();
+
+            std::vector<uint8_t> data;
+            data.push_back((uint8_t)ErrorMessageType::NO_ERROR);
+            data.push_back(myName->length());
+            data.insert(data.end(), myName->begin(), myName->end());
+            deviceClientMessageMaps[deviceIndex][MessageType::SET_NAME] = data;
+        }
+        else
+        {
+            try
+            {
+                auto peer = EspNowPeer::getPeerByDeviceIndex(deviceIndex);
+                std::vector<uint8_t> data;
+                data.push_back(nameLength);
+                data.insert(data.end(), newName, newName + nameLength);
+                peer->messageMap.erase(MessageType::GET_NAME);
+                peer->messageMap[MessageType::SET_NAME] = data;
+            }
+            catch (const std::out_of_range &error)
+            {
+                uint8_t data[1];
+                data[0] = (uint8_t)ErrorMessageType::DEVICE_NOT_FOUND;
+                deviceClientMessageMaps[deviceIndex][MessageType::SET_NAME].assign(data, data + sizeof(data));
+            }
+        }
+
+        return dataOffset;
+    }
+    uint8_t onClientRequestGetType(uint8_t *data, uint8_t dataOffset)
+    {
+        uint8_t deviceIndex = data[dataOffset++];
+        if (deviceIndex == 0)
+        {
+            uint8_t data[2];
+            data[0] = (uint8_t)ErrorMessageType::NO_ERROR;
+            data[1] = (uint8_t)deviceType;
+            deviceClientMessageMaps[deviceIndex][MessageType::GET_TYPE].assign(data, data + sizeof(data));
+        }
+        else
+        {
+            try
+            {
+                auto peer = EspNowPeer::getPeerByDeviceIndex(deviceIndex);
+                if (peer->didUpdateNameAtLeastOnce)
+                {
+                    uint8_t data[2];
+                    data[0] = (uint8_t)ErrorMessageType::NO_ERROR;
+                    data[1] = (uint8_t)peer->getDeviceType();
+                    deviceClientMessageMaps[deviceIndex][MessageType::GET_TYPE].assign(data, data + sizeof(data));
+                }
+                else
+                {
+                    peer->messageMap[MessageType::GET_TYPE];
+                }
+            }
+            catch (const std::out_of_range &error)
+            {
+                uint8_t data[1];
+                data[0] = (uint8_t)ErrorMessageType::DEVICE_NOT_FOUND;
+                deviceClientMessageMaps[deviceIndex][MessageType::GET_TYPE].assign(data, data + sizeof(data));
+            }
+        }
+
+        return dataOffset;
+    }
 
     void onWebSocketMessage(AsyncWebSocketClient *client, void *arg, uint8_t *data, size_t len)
     {
@@ -73,162 +229,17 @@ namespace wifiServer
                 switch (messageType)
                 {
                 case MessageType::GET_NUMBER_OF_DEVICES:
-                {
-                    uint8_t data[2];
-                    data[0] = (uint8_t)ErrorMessageType::NO_ERROR;
-                    data[1] = getNumberOfDevices();
-                    clientMessageMap[messageType].assign(data, data + sizeof(data));
-                }
-                break;
-                case MessageType::GET_AVAILABILITY:
-                {
-                    uint8_t deviceIndex = data[dataOffset++];
-                    if (deviceIndex == 0)
-                    {
-                        uint8_t data[2];
-                        data[0] = (uint8_t)ErrorMessageType::NO_ERROR;
-                        data[1] = 1; // isAvailable
-                        deviceClientMessageMaps[deviceIndex][messageType].assign(data, data + sizeof(data));
-                    }
-                    else
-                    {
-                        try
-                        {
-                            auto peer = EspNowPeer::getPeerByDeviceIndex(deviceIndex);
-                            uint8_t data[2];
-                            data[0] = (uint8_t)ErrorMessageType::NO_ERROR;
-                            data[1] = peer->getAvailability() ? 1 : 0;
-                            deviceClientMessageMaps[deviceIndex][messageType].assign(data, data + sizeof(data));
-                        }
-                        catch (const std::out_of_range &error)
-                        {
-                            uint8_t data[1];
-                            data[0] = (uint8_t)ErrorMessageType::DEVICE_NOT_FOUND;
-                            deviceClientMessageMaps[deviceIndex][messageType].assign(data, data + sizeof(data));
-                        }
-                    }
-                }
-                break;
+                    onClientRequestNumberOfDevices();
+                    break;
                 case MessageType::GET_NAME:
-                {
-                    uint8_t deviceIndex = data[dataOffset++];
-                    if (deviceIndex == 0)
-                    {
-                        auto myName = name::getName();
-
-                        std::vector<uint8_t> data;
-                        data.push_back((uint8_t)ErrorMessageType::NO_ERROR);
-                        data.push_back(myName->length());
-                        data.insert(data.end(), myName->begin(), myName->end());
-                        deviceClientMessageMaps[deviceIndex][messageType] = data;
-                    }
-                    else
-                    {
-                        try
-                        {
-                            auto peer = EspNowPeer::getPeerByDeviceIndex(deviceIndex);
-                            if (peer->didUpdateNameAtLeastOnce)
-                            {
-                                if (deviceClientMessageMaps[deviceIndex].count(MessageType::SET_NAME) == 0)
-                                {
-                                    std::vector<uint8_t> data;
-                                    data.push_back((uint8_t)ErrorMessageType::NO_ERROR);
-                                    auto peerName = peer->getName();
-                                    data.push_back(peerName->length());
-                                    data.insert(data.end(), peerName->begin(), peerName->end());
-                                    deviceClientMessageMaps[deviceIndex][messageType] = data;
-                                }
-                            }
-                            else
-                            {
-                                if (peer->messageMap.count(MessageType::SET_NAME) == 0)
-                                {
-                                    peer->messageMap[messageType];
-                                }
-                            }
-                        }
-                        catch (const std::out_of_range &error)
-                        {
-                            uint8_t data[1];
-                            data[0] = (uint8_t)ErrorMessageType::DEVICE_NOT_FOUND;
-                            deviceClientMessageMaps[deviceIndex][messageType].assign(data, data + sizeof(data));
-                        }
-                    }
-                }
-                break;
+                    dataOffset = onClientRequestGetName(data, dataOffset);
+                    break;
                 case MessageType::SET_NAME:
-                {
-                    uint8_t deviceIndex = data[dataOffset++];
-                    uint8_t nameLength = data[dataOffset++];
-                    const char *newName = (char *)&data[dataOffset];
-                    dataOffset += nameLength;
-                    if (deviceIndex == 0)
-                    {
-                        name::setName(newName, nameLength);
-                        const std::string *myName = name::getName();
-
-                        std::vector<uint8_t> data;
-                        data.push_back((uint8_t)ErrorMessageType::NO_ERROR);
-                        data.push_back(myName->length());
-                        data.insert(data.end(), myName->begin(), myName->end());
-                        deviceClientMessageMaps[deviceIndex][messageType] = data;
-                    }
-                    else
-                    {
-                        try
-                        {
-                            auto peer = EspNowPeer::getPeerByDeviceIndex(deviceIndex);
-                            std::vector<uint8_t> data;
-                            data.push_back(nameLength);
-                            data.insert(data.end(), newName, newName + nameLength);
-                            peer->messageMap.erase(MessageType::GET_NAME);
-                            peer->messageMap[messageType] = data;
-                        }
-                        catch (const std::out_of_range &error)
-                        {
-                            uint8_t data[1];
-                            data[0] = (uint8_t)ErrorMessageType::DEVICE_NOT_FOUND;
-                            deviceClientMessageMaps[deviceIndex][messageType].assign(data, data + sizeof(data));
-                        }
-                    }
-                }
-                break;
+                    dataOffset = onClientRequestSetName(data, dataOffset);
+                    break;
                 case MessageType::GET_TYPE:
-                {
-                    uint8_t deviceIndex = data[dataOffset++];
-                    if (deviceIndex == 0)
-                    {
-                        uint8_t data[2];
-                        data[0] = (uint8_t)ErrorMessageType::NO_ERROR;
-                        data[1] = (uint8_t)deviceType;
-                        deviceClientMessageMaps[deviceIndex][messageType].assign(data, data + sizeof(data));
-                    }
-                    else
-                    {
-                        try
-                        {
-                            auto peer = EspNowPeer::getPeerByDeviceIndex(deviceIndex);
-                            if (peer->didUpdateNameAtLeastOnce)
-                            {
-                                uint8_t data[2];
-                                data[0] = (uint8_t)ErrorMessageType::NO_ERROR;
-                                data[1] = (uint8_t)peer->getDeviceType();
-                                deviceClientMessageMaps[deviceIndex][messageType].assign(data, data + sizeof(data));
-                            }
-                            else
-                            {
-                                peer->messageMap[messageType];
-                            }
-                        }
-                        catch (const std::out_of_range &error)
-                        {
-                            uint8_t data[1];
-                            data[0] = (uint8_t)ErrorMessageType::DEVICE_NOT_FOUND;
-                            deviceClientMessageMaps[deviceIndex][messageType].assign(data, data + sizeof(data));
-                        }
-                    }
-                }
-                break;
+                    dataOffset = onClientRequestGetType(data, dataOffset);
+                    break;
                 default:
                     Serial.print("uncaught websocket message type: ");
                     Serial.println((uint8_t)messageType);
@@ -248,10 +259,18 @@ namespace wifiServer
         case WS_EVT_CONNECT:
             Serial.printf("WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
             Serial.printf("There are currently %u clients\n", webSocket.count());
+            if (webSocket.count() == 1)
+            {
+                onClientConnection();
+            }
             break;
         case WS_EVT_DISCONNECT:
             Serial.printf("WebSocket client #%u disconnected\n", client->id());
             Serial.printf("There are currently %u clients\n", webSocket.count());
+            if (webSocket.count() == 0)
+            {
+                onClientDisconnection();
+            }
             break;
         case WS_EVT_DATA:
             Serial.printf("Message of size #%u\n", len);
@@ -267,6 +286,8 @@ namespace wifiServer
     {
         if (isConnectedToClient())
         {
+            lastTimeConnected = currentMillis;
+
             if (shouldSendToClient)
             {
                 std::vector<uint8_t> clientMessageData;
@@ -333,6 +354,15 @@ namespace wifiServer
         if (peer == nullptr)
         {
             peer = new EspNowPeer(macAddress);
+            if (isConnectedToClient())
+            {
+                deviceClientMessageMaps[peer->getDeviceIndex()][MessageType::DEVICE_ADDED];
+                peer->onClientConnection();
+            }
+            else
+            {
+                peer->onClientDisconnection();
+            }
         }
 
         if (!peer->isConnected())
@@ -368,7 +398,8 @@ namespace wifiServer
                 uint8_t errorData[1]{(uint8_t)ErrorMessageType::FAILED_TO_SEND};
                 for (auto messageMapIterator = peer->messageMap.begin(); messageMapIterator != peer->messageMap.end(); messageMapIterator++)
                 {
-                    if (messageMapIterator->first != MessageType::PING) {
+                    if (messageMapIterator->first != MessageType::PING)
+                    {
                         deviceClientMessageMaps[deviceIndex][messageMapIterator->first].assign(errorData, errorData + sizeof(errorData));
                     }
                 }
@@ -412,32 +443,43 @@ namespace wifiServer
 
     void batteryLevelLoop()
     {
-        uint8_t data[1]{battery::getBatteryLevel()};
-        deviceClientMessageMaps[0][MessageType::BATTERY_LEVEL].assign(data, data + sizeof(data));
-        shouldSendToClient = true;
+        if (currentMillis - previousBatteryLevelMillis >= batteryLevelInterval)
+        {
+            previousBatteryLevelMillis = currentMillis;
+            if (isConnectedToClient())
+            {
+                uint8_t data[1]{battery::getBatteryLevel()};
+                deviceClientMessageMaps[0][MessageType::BATTERY_LEVEL].assign(data, data + sizeof(data));
+                shouldSendToClient = true;
+
+                EspNowPeer::batteryLevelsLoop();
+            }
+        }
+    }
+
+    void motionCalibrationLoop()
+    {
+        if (currentMillis - previousMotionCalibrationMillis >= motionCalibrationInterval)
+        {
+            previousMotionCalibrationMillis = currentMillis;
+            deviceClientMessageMaps[0][MessageType::MOTION_CALIBRATION].assign(motion::calibration, motion::calibration + sizeof(motion::calibration));
+            shouldSendToClient = true;
+
+            EspNowPeer::motionCalibrationsLoop();
+        }
     }
 
     void loop()
     {
         currentMillis = millis();
 
-        if (currentMillis - previousBatteryLevelMillis >= batteryLevelInterval)
+        if (sentClientNumberOfDevices)
         {
-            previousBatteryLevelMillis = currentMillis;
-            if (isConnectedToClient())
-            {
-                EspNowPeer::batteryLevelsLoop();
-                batteryLevelLoop();
-            }
+            batteryLevelLoop();
+            motionCalibrationLoop();
         }
-
         EspNowPeer::pingLoop();
-
-        if (EspNowPeer::shouldSendAll)
-        {
-            EspNowPeer::sendAll();
-        }
-
+        EspNowPeer::sendAll();
         webSocketLoop();
     }
 
@@ -540,6 +582,14 @@ namespace wifiServer
                 break;
                 case MessageType::PING:
                     break;
+                case MessageType::CLIENT_CONNECTED:
+                    Serial.println("connected to client");
+                    _isConnectedToClient = true;
+                    break;
+                case MessageType::CLIENT_DISCONNECTED:
+                    Serial.println("disconnected from client");
+                    _isConnectedToClient = false;
+                    break;
                 default:
                     Serial.print("uncaught receiver message type: ");
                     Serial.println((uint8_t)messageType);
@@ -621,6 +671,16 @@ namespace wifiServer
         }
     }
 
+    void motionCalibrationLoop()
+    {
+        if (currentMillis - previousMotionCalibrationMillis >= motionCalibrationInterval)
+        {
+            previousMotionCalibrationMillis = currentMillis;
+            receiverMessageMap[MessageType::MOTION_CALIBRATION].assign(motion::calibration, motion::calibration + sizeof(motion::calibration));
+            shouldSendToReceiver = true;
+        }
+    }
+
     unsigned long previousPingMillis = 0;
     const long pingInterval = 2000;
     void pingLoop()
@@ -674,7 +734,12 @@ namespace wifiServer
     void loop()
     {
         currentMillis = millis();
+        if (isConnectedToClient())
+        {
+            lastTimeConnected = currentMillis;
+        }
         batteryLevelLoop();
+        motionCalibrationLoop();
         pingLoop();
         sendLoop();
     }

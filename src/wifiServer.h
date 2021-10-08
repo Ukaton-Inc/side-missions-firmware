@@ -23,11 +23,10 @@ namespace wifiServer
     enum class MessageType : uint8_t
     {
         GET_NUMBER_OF_DEVICES,
+        AVAILABILITY,
 
         DEVICE_ADDED,
         DEVICE_REMOVED,
-
-        GET_AVAILABILITY,
 
         BATTERY_LEVEL,
 
@@ -36,17 +35,20 @@ namespace wifiServer
 
         GET_TYPE,
 
+        MOTION_CALIBRATION,
+        
         GET_MOTION_CONFIGURATION,
         SET_MOTION_CONFIGURATION,
-
-        GET_MOTION_CALLIBRATION_DATA,
 
         GET_PRESSURE_CONFIGURATION,
         SET_PRESSURE_CONFIGURATION,
 
         DATA,
 
-        PING
+        PING,
+        
+        CLIENT_CONNECTED,
+        CLIENT_DISCONNECTED
     };
 
     enum class ErrorMessageType : uint8_t
@@ -64,6 +66,7 @@ namespace wifiServer
     extern std::map<uint8_t, std::map<MessageType, std::vector<uint8_t>>> deviceClientMessageMaps;
     extern std::map<MessageType, std::vector<uint8_t>> clientMessageMap;
     extern bool shouldSendToClient;
+    extern unsigned long lastTimeConnected;
 
     extern unsigned long currentMillis;
 

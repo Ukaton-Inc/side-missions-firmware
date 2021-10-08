@@ -1,6 +1,5 @@
 #include "motion.h"
 #include "eepromUtils.h"
-#include <Adafruit_BNO055.h>
 #include <lwipopts.h>
 
 namespace motion
@@ -16,11 +15,11 @@ namespace motion
     }
 
     adafruit_bno055_offsets_t sensorOffsets;
-    uint8_t callibrationData[(uint8_t) CalibrationType::COUNT];
+    uint8_t calibration[(uint8_t) CalibrationType::COUNT];
     bool wroteFullCalibration = false;
     void updateCalibration()
     {
-        bno.getCalibration(&callibrationData[0], &callibrationData[1], &callibrationData[2], &callibrationData[3]);
+        bno.getCalibration(&calibration[0], &calibration[1], &calibration[2], &calibration[3]);
         if (bno.isFullyCalibrated() && !wroteFullCalibration)
         {
             bool saveSuccessful = saveToEEPROM();
