@@ -121,7 +121,7 @@ namespace motion
                         _dataSize = 6;
                         break;
                     case LINEAR_ACCELERATION:
-                        bno.getRawVectorData(Adafruit_BNO055::VECTOR_GRAVITY, _data);
+                        bno.getRawVectorData(Adafruit_BNO055::VECTOR_LINEARACCEL, _data);
                         _dataSize = 6;
                         break;
                     case ROTATION_RATE:
