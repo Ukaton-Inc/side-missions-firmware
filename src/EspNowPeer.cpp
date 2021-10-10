@@ -83,6 +83,7 @@ void EspNowPeer::onClientDisconnection()
     messageMap[MessageType::CLIENT_DISCONNECTED];
     messageMap.erase(MessageType::CLIENT_CONNECTED);
     shouldSend = true;
+    memset(&motion.configuration, 0, sizeof(motion.configuration));
 }
 void EspNowPeer::OnClientDisconnection()
 {
@@ -165,10 +166,26 @@ void EspNowPeer::updateAvailability(bool _isAvailable)
     {
         didUpdateNameAtLeastOnce = false;
         didUpdateDeviceTypeAtLeastOnce = false;
+        didUpdateBatteryLevelAtLeastOnce = false;
+        motion.didUpdateCalibrationAtLeastOnce = false;
+        motion.didUpdateConfigurationAtLeastOnce = false;
     }
 
     Serial.print("updated availability: ");
     Serial.println(isAvailable);
+}
+
+unsigned long EspNowPeer::getTimestamp()
+{
+    return timestamp;
+}
+void EspNowPeer::updateTimestamp(unsigned long _timestamp)
+{
+    timestamp = _timestamp;
+    didUpdateTimestampAtLeastOnce = true;
+
+    Serial.print("updated timestamp: ");
+    Serial.println(timestamp);
 }
 
 uint8_t EspNowPeer::getBatteryLevel()
@@ -216,11 +233,6 @@ void EspNowPeer::updateDeviceType(DeviceType _deviceType)
     }
 }
 
-EspNowPeer::Motion::~Motion()
-{
-    delete[] data;
-    delete dataTypes;
-}
 void EspNowPeer::Motion::updateCalibration(const uint8_t *_calibration)
 {
     memcpy(calibration, _calibration, sizeof(calibration));
@@ -235,17 +247,86 @@ void EspNowPeer::Motion::updateCalibration(const uint8_t *_calibration)
     }
     Serial.println();
 }
-uint8_t EspNowPeer::Motion::onCalibration(const uint8_t *_calibration, uint8_t incomingDataOffset)
+uint8_t EspNowPeer::onMotionCalibration(const uint8_t *incomingData, uint8_t incomingDataOffset)
 {
-    updateCalibration(_calibration);
-    incomingDataOffset += sizeof(calibration);
+    auto motionCalibration = &incomingData[incomingDataOffset];
+    motion.updateCalibration(motionCalibration);
+    incomingDataOffset += sizeof(motion.calibration);
     return incomingDataOffset;
 }
 
-EspNowPeer::Pressure::~Pressure()
+void EspNowPeer::Motion::updateConfiguration(const uint16_t *_configuration)
 {
-    delete[] data;
-    delete dataTypes;
+    memcpy(configuration, _configuration, sizeof(configuration));
+    for (uint8_t dataType = 0; dataType < (uint8_t)motion::DataType::COUNT; dataType++)
+    {
+        configuration[dataType] -= configuration[dataType] % dataInterval;
+    }
+    didUpdateConfigurationAtLeastOnce = true;
+
+    Serial.print("updated configuration: ");
+    for (uint8_t index = 0; index < (sizeof(configuration) / 2); index++)
+    {
+        Serial.print(configuration[index]);
+        Serial.print(',');
+    }
+    Serial.println();
+}
+uint8_t EspNowPeer::onMotionConfiguration(const uint8_t *incomingData, uint8_t incomingDataOffset, MessageType messageType)
+{
+    ErrorMessageType errorMessageType = (ErrorMessageType)incomingData[incomingDataOffset++];
+    if (errorMessageType == ErrorMessageType::NO_ERROR)
+    {
+        auto motionConfiguration = (const uint16_t *)&incomingData[incomingDataOffset];
+        motion.updateConfiguration(motionConfiguration);
+        incomingDataOffset += sizeof(motion.configuration);
+
+        if (isConnectedToClient())
+        {
+            std::vector<uint8_t> data;
+            data.push_back((uint8_t)ErrorMessageType::NO_ERROR);
+            data.insert(data.end(), (uint8_t *)motion.configuration, ((uint8_t *)motion.configuration) + sizeof(motion.configuration));
+            deviceClientMessageMaps[deviceIndex][messageType] = data;
+        }
+    }
+    else
+    {
+        if (isConnectedToClient())
+        {
+            uint8_t data[1]{(uint8_t)errorMessageType};
+            deviceClientMessageMaps[deviceIndex][messageType].assign(data, data + sizeof(data));
+        }
+    }
+
+    return incomingDataOffset;
+}
+
+uint8_t EspNowPeer::onMotionData(const uint8_t *incomingData, uint8_t incomingDataOffset)
+{
+    uint8_t motionDataLength = incomingData[incomingDataOffset++];
+    motion.updateData(&incomingData[incomingDataOffset], motionDataLength);
+    incomingDataOffset += motionDataLength;
+    Serial.print("New offset: ");
+    Serial.println(incomingDataOffset);
+    return incomingDataOffset;
+}
+void EspNowPeer::Motion::updateData(const uint8_t *_data, size_t length)
+{
+    Serial.print("data length: ");
+    Serial.println(length);
+    data.assign(_data, _data + length);
+    didUpdateDataAtLeastOnce = true;
+    didSendData = false;
+
+    Serial.print("updated motion data of size ");
+    Serial.print(data.size());
+    Serial.print(": ");
+    for (auto iterator = data.begin(); iterator != data.end(); iterator++)
+    {
+        Serial.print(*iterator);
+        Serial.print(',');
+    }
+    Serial.println();
 }
 
 void EspNowPeer::send()
@@ -321,11 +402,19 @@ void EspNowPeer::pingLoop()
 {
     if (currentMillis - previousPingMillis >= pingInterval)
     {
-        previousPingMillis = currentMillis;
         pingAll();
+        previousPingMillis = currentMillis - (currentMillis % pingInterval);
     }
 }
 
+uint8_t EspNowPeer::onTimestamp(const uint8_t *incomingData, uint8_t incomingDataOffset)
+{
+    unsigned long timestamp;
+    memcpy(&timestamp, &incomingData[incomingDataOffset], sizeof(timestamp));
+    incomingDataOffset += sizeof(timestamp);
+    updateTimestamp(timestamp);
+    return incomingDataOffset;
+}
 uint8_t EspNowPeer::onBatteryLevel(const uint8_t *incomingData, uint8_t incomingDataOffset)
 {
     uint8_t batteryLevel = incomingData[incomingDataOffset++];
@@ -406,6 +495,9 @@ void EspNowPeer::onMessage(const uint8_t *incomingData, int len)
         Serial.println((uint8_t)messageType);
         switch (messageType)
         {
+        case MessageType::TIMESTAMP:
+            incomingDataOffset = onTimestamp(incomingData, incomingDataOffset);
+            break;
         case MessageType::BATTERY_LEVEL:
             incomingDataOffset = onBatteryLevel(incomingData, incomingDataOffset);
             break;
@@ -417,11 +509,18 @@ void EspNowPeer::onMessage(const uint8_t *incomingData, int len)
             incomingDataOffset = onType(incomingData, incomingDataOffset);
             break;
         case MessageType::MOTION_CALIBRATION:
-        {
-            auto motionCalibration = &incomingData[incomingDataOffset++];
-            incomingDataOffset = motion.onCalibration(motionCalibration, incomingDataOffset);
-        }
-        break;
+            incomingDataOffset = onMotionCalibration(incomingData, incomingDataOffset);
+            break;
+        case MessageType::GET_MOTION_CONFIGURATION:
+        case MessageType::SET_MOTION_CONFIGURATION:
+            incomingDataOffset = onMotionConfiguration(incomingData, incomingDataOffset, messageType);
+            break;
+        case MessageType::MOTION_DATA:
+            incomingDataOffset = onMotionData(incomingData, incomingDataOffset);
+            break;
+        case MessageType::PRESSURE_DATA:
+            //incomingDataOffset = onPressureData(incomingData, incomingDataOffset);
+            break;
         case MessageType::PING:
             break;
         default:
@@ -430,6 +529,11 @@ void EspNowPeer::onMessage(const uint8_t *incomingData, int len)
             incomingDataOffset = len;
             break;
         }
+        Serial.print("new peer message offset: ");
+        Serial.println(incomingDataOffset);
+
+        Serial.print("continue parsing? ");
+        Serial.println(incomingDataOffset < len);
     }
 
     shouldSend = (messageMap.size() > 0);
@@ -448,7 +552,7 @@ void EspNowPeer::batteryLevelLoop()
         shouldSendToClient = true;
     }
 }
-void EspNowPeer::batteryLevelsLoop()
+void EspNowPeer::BatteryLevelLoop()
 {
     for (auto peerIterator = peers.begin(); peerIterator != peers.end(); peerIterator++)
     {
@@ -465,10 +569,30 @@ void EspNowPeer::motionCalibrationLoop()
         shouldSendToClient = true;
     }
 }
-void EspNowPeer::motionCalibrationsLoop()
+void EspNowPeer::MotionCalibrationLoop()
 {
     for (auto peerIterator = peers.begin(); peerIterator != peers.end(); peerIterator++)
     {
         (*peerIterator)->motionCalibrationLoop();
+    }
+}
+
+void EspNowPeer::motionDataLoop()
+{
+    if (isAvailable && !motion.didSendData && motion.didUpdateDataAtLeastOnce)
+    {
+        deviceClientMessageMaps[deviceIndex][MessageType::MOTION_DATA].push_back(motion.data.size());
+        deviceClientMessageMaps[deviceIndex][MessageType::MOTION_DATA].insert(deviceClientMessageMaps[deviceIndex][MessageType::MOTION_DATA].end(), motion.data.begin(), motion.data.end());
+        motion.didSendData = true;
+        
+        shouldSendToClient = true;
+        includeTimestampInClientMessage = true;
+    }
+}
+void EspNowPeer::MotionDataLoop()
+{
+    for (auto peerIterator = peers.begin(); peerIterator != peers.end(); peerIterator++)
+    {
+        (*peerIterator)->motionDataLoop();
     }
 }

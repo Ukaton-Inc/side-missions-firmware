@@ -22,6 +22,8 @@ namespace wifiServer
 
     enum class MessageType : uint8_t
     {
+        TIMESTAMP,
+
         GET_NUMBER_OF_DEVICES,
         AVAILABILITY,
 
@@ -43,7 +45,8 @@ namespace wifiServer
         GET_PRESSURE_CONFIGURATION,
         SET_PRESSURE_CONFIGURATION,
 
-        DATA,
+        MOTION_DATA,
+        PRESSURE_DATA,
 
         PING,
         
@@ -58,17 +61,15 @@ namespace wifiServer
         FAILED_TO_SEND,
     };
 
-    enum class DataType : uint8_t
-    {
-        
-    };
-
     extern std::map<uint8_t, std::map<MessageType, std::vector<uint8_t>>> deviceClientMessageMaps;
     extern std::map<MessageType, std::vector<uint8_t>> clientMessageMap;
     extern bool shouldSendToClient;
     extern unsigned long lastTimeConnected;
 
     extern unsigned long currentMillis;
+
+    const long dataInterval = 20;
+    extern bool includeTimestampInClientMessage;
 
     void setup();
     void loop();

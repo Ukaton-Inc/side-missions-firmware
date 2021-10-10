@@ -65,6 +65,14 @@ public:
     void updateAvailability(bool isAvailable);
 
 private:
+    unsigned long timestamp;
+
+public:
+    unsigned long getTimestamp();
+    void updateTimestamp(unsigned long timestamp);
+    bool didUpdateTimestampAtLeastOnce = false;
+
+private:
     uint8_t batteryLevel = 0;
     bool didUpdateBatteryLevelAtLeastOnce = false;
     bool didSendBatteryLevel = false;
@@ -92,34 +100,33 @@ public:
 private:
     class Motion
     {
-    public:
-        ~Motion();
 
     public:
         uint8_t calibration[(uint8_t)motion::CalibrationType::COUNT];
-        uint8_t onCalibration(const uint8_t *incomingData, uint8_t incomingDataOffset);
         void updateCalibration(const uint8_t *calibration);
         bool didUpdateCalibrationAtLeastOnce = false;
         bool didSendCalibration = false;
 
-    private:
+    public:
         uint16_t configuration[(uint8_t)motion::DataType::COUNT];
-        uint8_t *data = nullptr;
-        uint8_t dataSize = 0;
-        uint8_t *dataTypes = nullptr;
+        void updateConfiguration(const uint16_t *configuration);
+        bool didUpdateConfigurationAtLeastOnce = false;
+
+    public:
+        std::vector<uint8_t> data;
+        void updateData(const uint8_t *data, size_t length);
+        bool didUpdateDataAtLeastOnce = false;
+        bool didSendData = false;
     };
+
+public:
     Motion motion;
+    uint8_t onMotionCalibration(const uint8_t *incomingData, uint8_t incomingDataOffset);
+    uint8_t onMotionConfiguration(const uint8_t *incomingData, uint8_t incomingDataOffset, wifiServer::MessageType messageType);
+    uint8_t onMotionData(const uint8_t *incomingData, uint8_t incomingDataOffset);
 
     class Pressure
     {
-    public:
-        ~Pressure();
-
-    private:
-        uint16_t configuration[6]{0}; // FIX - replace with pressure::NUMBER_OF_DATA_TYPES
-        uint8_t *data = nullptr;
-        uint8_t dataSize = 0;
-        uint8_t *dataTypes = nullptr;
     };
     Pressure *pressure = nullptr;
 
@@ -134,7 +141,7 @@ public:
 
 private:
     static unsigned long previousPingMillis;
-    static const long pingInterval = 2000;
+    static const unsigned long pingInterval = 2000;
 
 public:
     void ping();
@@ -142,6 +149,7 @@ public:
     static void pingLoop();
 
 private:
+    uint8_t onTimestamp(const uint8_t *incomingData, uint8_t incomingDataOffset);
     uint8_t onBatteryLevel(const uint8_t *incomingData, uint8_t incomingDataOffset);
     uint8_t onName(const uint8_t *incomingData, uint8_t incomingDataOffset, wifiServer::MessageType messageType);
     uint8_t onType(const uint8_t *incomingData, uint8_t incomingDataOffset);
@@ -153,13 +161,19 @@ private:
     void batteryLevelLoop();
 
 public:
-    static void batteryLevelsLoop();
+    static void BatteryLevelLoop();
 
 private:
     void motionCalibrationLoop();
 
 public:
-    static void motionCalibrationsLoop();
+    static void MotionCalibrationLoop();
+
+private:
+    void motionDataLoop();
+
+public:
+    static void MotionDataLoop();
 };
 
 #endif // _ESP_NOW_PEER_
