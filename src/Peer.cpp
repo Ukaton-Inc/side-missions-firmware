@@ -1,14 +1,15 @@
-#include "EspNowPeer.h"
+#include "Peer.h"
+#include "definitions.h"
 
 using namespace wifiServer;
 
-std::vector<EspNowPeer *> EspNowPeer::peers;
-uint8_t EspNowPeer::getNumberOfPeers()
+std::vector<Peer *> Peer::peers;
+uint8_t Peer::getNumberOfPeers()
 {
     return peers.size();
 };
 
-EspNowPeer::EspNowPeer(const uint8_t *macAddress)
+Peer::Peer(const uint8_t *macAddress)
 {
     memset(&peerInfo, 0, sizeof(peerInfo));
     peerInfo.encrypt = false;
@@ -21,7 +22,7 @@ EspNowPeer::EspNowPeer(const uint8_t *macAddress)
 
     setMacAddress(macAddress);
 };
-EspNowPeer::~EspNowPeer()
+Peer::~Peer()
 {
     disconnect();
     delete pressure;
@@ -33,7 +34,7 @@ EspNowPeer::~EspNowPeer()
     }
 }
 
-esp_err_t EspNowPeer::connect()
+esp_err_t Peer::connect()
 {
     esp_err_t result = esp_now_add_peer(&peerInfo);
     if (result == ESP_OK)
@@ -54,22 +55,22 @@ esp_err_t EspNowPeer::connect()
     }
     return result;
 }
-esp_err_t EspNowPeer::disconnect()
+esp_err_t Peer::disconnect()
 {
     return esp_now_del_peer(macAddress);
 }
-bool EspNowPeer::isConnected()
+bool Peer::isConnected()
 {
     return esp_now_is_peer_exist(macAddress);
 }
 
-void EspNowPeer::onClientConnection()
+void Peer::onClientConnection()
 {
     messageMap[MessageType::CLIENT_CONNECTED];
     messageMap.erase(MessageType::CLIENT_DISCONNECTED);
     shouldSend = true;
 }
-void EspNowPeer::OnClientConnection()
+void Peer::OnClientConnection()
 {
     for (auto peerIterator = peers.begin(); peerIterator != peers.end(); peerIterator++)
     {
@@ -78,14 +79,14 @@ void EspNowPeer::OnClientConnection()
     shouldSendAll = true;
 }
 
-void EspNowPeer::onClientDisconnection()
+void Peer::onClientDisconnection()
 {
     messageMap[MessageType::CLIENT_DISCONNECTED];
     messageMap.erase(MessageType::CLIENT_CONNECTED);
     shouldSend = true;
     memset(&motion.configuration, 0, sizeof(motion.configuration));
 }
-void EspNowPeer::OnClientDisconnection()
+void Peer::OnClientDisconnection()
 {
     for (auto peerIterator = peers.begin(); peerIterator != peers.end(); peerIterator++)
     {
@@ -94,35 +95,35 @@ void EspNowPeer::OnClientDisconnection()
     shouldSendAll = true;
 }
 
-uint8_t EspNowPeer::getIndex()
+uint8_t Peer::getIndex()
 {
     return index;
 }
-void EspNowPeer::setIndex(uint8_t _index)
+void Peer::setIndex(uint8_t _index)
 {
     index = _index;
     deviceIndex = index + 1;
 }
 
-uint8_t EspNowPeer::getDeviceIndex()
+uint8_t Peer::getDeviceIndex()
 {
     return deviceIndex;
 }
 
-const uint8_t *EspNowPeer::getMacAddress()
+const uint8_t *Peer::getMacAddress()
 {
     return macAddress;
 }
-void EspNowPeer::setMacAddress(const uint8_t *_macAddress)
+void Peer::setMacAddress(const uint8_t *_macAddress)
 {
     memcpy(macAddress, _macAddress, sizeof(macAddress));
     memcpy(peerInfo.peer_addr, macAddress, sizeof(macAddress));
 
     connect();
 }
-EspNowPeer *EspNowPeer::getPeerByMacAddress(const uint8_t *macAddress)
+Peer *Peer::getPeerByMacAddress(const uint8_t *macAddress)
 {
-    EspNowPeer *peer = nullptr;
+    Peer *peer = nullptr;
     for (auto peerIterator = peers.begin(); peerIterator != peers.end() && peer == nullptr; peerIterator++)
     {
         if (areMacAddressesEqual((*peerIterator)->macAddress, macAddress))
@@ -132,11 +133,11 @@ EspNowPeer *EspNowPeer::getPeerByMacAddress(const uint8_t *macAddress)
     }
     return peer;
 }
-EspNowPeer *EspNowPeer::getPeerByDeviceIndex(uint8_t deviceIndex)
+Peer *Peer::getPeerByDeviceIndex(uint8_t deviceIndex)
 {
     try
     {
-        EspNowPeer *peer = peers.at(deviceIndex - 1);
+        Peer *peer = peers.at(deviceIndex - 1);
         return peer;
     }
     catch (const std::out_of_range &error)
@@ -147,11 +148,11 @@ EspNowPeer *EspNowPeer::getPeerByDeviceIndex(uint8_t deviceIndex)
     }
 }
 
-bool EspNowPeer::getAvailability()
+bool Peer::getAvailability()
 {
     return isAvailable;
 }
-void EspNowPeer::updateAvailability(bool _isAvailable)
+void Peer::updateAvailability(bool _isAvailable)
 {
     if (isAvailable != _isAvailable)
     {
@@ -171,55 +172,62 @@ void EspNowPeer::updateAvailability(bool _isAvailable)
         motion.didUpdateConfigurationAtLeastOnce = false;
     }
 
+#if DEBUG
     Serial.print("updated availability: ");
     Serial.println(isAvailable);
+#endif
 }
 
-unsigned long EspNowPeer::getTimestamp()
+unsigned long Peer::getTimestamp()
 {
     return timestamp;
 }
-void EspNowPeer::updateTimestamp(unsigned long _timestamp)
+void Peer::updateTimestamp(unsigned long _timestamp)
 {
     timestamp = _timestamp;
     didUpdateTimestampAtLeastOnce = true;
 
+#if DEBUG
     Serial.print("updated timestamp: ");
     Serial.println(timestamp);
+#endif
 }
 
-uint8_t EspNowPeer::getBatteryLevel()
+uint8_t Peer::getBatteryLevel()
 {
     return batteryLevel;
 }
-void EspNowPeer::updateBatteryLevel(uint8_t _batteryLevel)
+void Peer::updateBatteryLevel(uint8_t _batteryLevel)
 {
     batteryLevel = _batteryLevel;
     didSendBatteryLevel = false;
     didUpdateBatteryLevelAtLeastOnce = true;
 
+#if DEBUG
     Serial.print("updated battery level: ");
     Serial.println(batteryLevel);
+#endif
 }
 
-const std::string *EspNowPeer::getName()
+const std::string *Peer::getName()
 {
     return &name;
 }
 
-void EspNowPeer::updateName(const char *_name, size_t length)
+void Peer::updateName(const char *_name, size_t length)
 {
     name.assign(_name, length);
     didUpdateNameAtLeastOnce = true;
+
     Serial.print("updated name to: ");
     Serial.println(name.c_str());
 }
 
-DeviceType EspNowPeer::getDeviceType()
+DeviceType Peer::getDeviceType()
 {
     return deviceType;
 }
-void EspNowPeer::updateDeviceType(DeviceType _deviceType)
+void Peer::updateDeviceType(DeviceType _deviceType)
 {
     deviceType = _deviceType;
     didUpdateDeviceTypeAtLeastOnce = true;
@@ -233,12 +241,13 @@ void EspNowPeer::updateDeviceType(DeviceType _deviceType)
     }
 }
 
-void EspNowPeer::Motion::updateCalibration(const uint8_t *_calibration)
+void Peer::Motion::updateCalibration(const uint8_t *_calibration)
 {
     memcpy(calibration, _calibration, sizeof(calibration));
     didUpdateCalibrationAtLeastOnce = true;
     didSendCalibration = false;
 
+#if DEBUG
     Serial.print("updated calibration: ");
     for (uint8_t index = 0; index < sizeof(calibration); index++)
     {
@@ -246,8 +255,9 @@ void EspNowPeer::Motion::updateCalibration(const uint8_t *_calibration)
         Serial.print(',');
     }
     Serial.println();
+#endif
 }
-uint8_t EspNowPeer::onMotionCalibration(const uint8_t *incomingData, uint8_t incomingDataOffset)
+uint8_t Peer::onMotionCalibration(const uint8_t *incomingData, uint8_t incomingDataOffset)
 {
     auto motionCalibration = &incomingData[incomingDataOffset];
     motion.updateCalibration(motionCalibration);
@@ -255,7 +265,7 @@ uint8_t EspNowPeer::onMotionCalibration(const uint8_t *incomingData, uint8_t inc
     return incomingDataOffset;
 }
 
-void EspNowPeer::Motion::updateConfiguration(const uint16_t *_configuration)
+void Peer::Motion::updateConfiguration(const uint16_t *_configuration)
 {
     memcpy(configuration, _configuration, sizeof(configuration));
     for (uint8_t dataType = 0; dataType < (uint8_t)motion::DataType::COUNT; dataType++)
@@ -264,6 +274,7 @@ void EspNowPeer::Motion::updateConfiguration(const uint16_t *_configuration)
     }
     didUpdateConfigurationAtLeastOnce = true;
 
+#if DEBUG
     Serial.print("updated configuration: ");
     for (uint8_t index = 0; index < (sizeof(configuration) / 2); index++)
     {
@@ -271,8 +282,9 @@ void EspNowPeer::Motion::updateConfiguration(const uint16_t *_configuration)
         Serial.print(',');
     }
     Serial.println();
+#endif
 }
-uint8_t EspNowPeer::onMotionConfiguration(const uint8_t *incomingData, uint8_t incomingDataOffset, MessageType messageType)
+uint8_t Peer::onMotionConfiguration(const uint8_t *incomingData, uint8_t incomingDataOffset, MessageType messageType)
 {
     ErrorMessageType errorMessageType = (ErrorMessageType)incomingData[incomingDataOffset++];
     if (errorMessageType == ErrorMessageType::NO_ERROR)
@@ -301,23 +313,20 @@ uint8_t EspNowPeer::onMotionConfiguration(const uint8_t *incomingData, uint8_t i
     return incomingDataOffset;
 }
 
-uint8_t EspNowPeer::onMotionData(const uint8_t *incomingData, uint8_t incomingDataOffset)
+uint8_t Peer::onMotionData(const uint8_t *incomingData, uint8_t incomingDataOffset)
 {
     uint8_t motionDataLength = incomingData[incomingDataOffset++];
     motion.updateData(&incomingData[incomingDataOffset], motionDataLength);
     incomingDataOffset += motionDataLength;
-    Serial.print("New offset: ");
-    Serial.println(incomingDataOffset);
     return incomingDataOffset;
 }
-void EspNowPeer::Motion::updateData(const uint8_t *_data, size_t length)
+void Peer::Motion::updateData(const uint8_t *_data, size_t length)
 {
-    Serial.print("data length: ");
-    Serial.println(length);
     data.assign(_data, _data + length);
     didUpdateDataAtLeastOnce = true;
     didSendData = false;
 
+#if DEBUG
     Serial.print("updated motion data of size ");
     Serial.print(data.size());
     Serial.print(": ");
@@ -327,9 +336,10 @@ void EspNowPeer::Motion::updateData(const uint8_t *_data, size_t length)
         Serial.print(',');
     }
     Serial.println();
+#endif
 }
 
-void EspNowPeer::send()
+void Peer::send()
 {
     if (shouldSend)
     {
@@ -340,6 +350,7 @@ void EspNowPeer::send()
             data.insert(data.end(), messageMapIterator->second.begin(), messageMapIterator->second.end());
         }
 
+#if DEBUG
         Serial.print("Sending to Peer #");
         Serial.print(index);
         Serial.print(": ");
@@ -349,24 +360,29 @@ void EspNowPeer::send()
             Serial.print(',');
         }
         Serial.println();
+#endif
 
         esp_err_t sendError = esp_now_send(macAddress, data.data(), data.size());
 
         if (sendError == ESP_OK)
         {
+#if DEBUG
             Serial.println("Delivery Success");
+#endif
         }
         else
         {
+#if DEBUG
             Serial.print("Delivery Failed: ");
             Serial.println(esp_err_to_name(sendError));
+#endif
         }
 
         shouldSend = false;
     }
 }
-bool EspNowPeer::shouldSendAll = false;
-void EspNowPeer::sendAll()
+bool Peer::shouldSendAll = false;
+void Peer::sendAll()
 {
     if (shouldSendAll)
     {
@@ -378,7 +394,7 @@ void EspNowPeer::sendAll()
     }
 }
 
-void EspNowPeer::ping()
+void Peer::ping()
 {
     if (messageMap.size() == 0)
     {
@@ -386,7 +402,7 @@ void EspNowPeer::ping()
         shouldSend = true;
     }
 }
-void EspNowPeer::pingAll()
+void Peer::pingAll()
 {
     if (peers.size() > 0)
     {
@@ -397,8 +413,8 @@ void EspNowPeer::pingAll()
         shouldSendAll = true;
     }
 }
-unsigned long EspNowPeer::previousPingMillis = 0;
-void EspNowPeer::pingLoop()
+unsigned long Peer::previousPingMillis = 0;
+void Peer::pingLoop()
 {
     if (currentMillis - previousPingMillis >= pingInterval)
     {
@@ -407,7 +423,7 @@ void EspNowPeer::pingLoop()
     }
 }
 
-uint8_t EspNowPeer::onTimestamp(const uint8_t *incomingData, uint8_t incomingDataOffset)
+uint8_t Peer::onTimestamp(const uint8_t *incomingData, uint8_t incomingDataOffset)
 {
     unsigned long timestamp;
     memcpy(&timestamp, &incomingData[incomingDataOffset], sizeof(timestamp));
@@ -415,13 +431,13 @@ uint8_t EspNowPeer::onTimestamp(const uint8_t *incomingData, uint8_t incomingDat
     updateTimestamp(timestamp);
     return incomingDataOffset;
 }
-uint8_t EspNowPeer::onBatteryLevel(const uint8_t *incomingData, uint8_t incomingDataOffset)
+uint8_t Peer::onBatteryLevel(const uint8_t *incomingData, uint8_t incomingDataOffset)
 {
     uint8_t batteryLevel = incomingData[incomingDataOffset++];
     updateBatteryLevel(batteryLevel);
     return incomingDataOffset;
 }
-uint8_t EspNowPeer::onName(const uint8_t *incomingData, uint8_t incomingDataOffset, MessageType messageType)
+uint8_t Peer::onName(const uint8_t *incomingData, uint8_t incomingDataOffset, MessageType messageType)
 {
     ErrorMessageType errorMessageType = (ErrorMessageType)incomingData[incomingDataOffset++];
     if (errorMessageType == ErrorMessageType::NO_ERROR)
@@ -449,7 +465,7 @@ uint8_t EspNowPeer::onName(const uint8_t *incomingData, uint8_t incomingDataOffs
     }
     return incomingDataOffset;
 }
-uint8_t EspNowPeer::onType(const uint8_t *incomingData, uint8_t incomingDataOffset)
+uint8_t Peer::onType(const uint8_t *incomingData, uint8_t incomingDataOffset)
 {
     ErrorMessageType errorMessageType = (ErrorMessageType)incomingData[incomingDataOffset++];
     if (errorMessageType == ErrorMessageType::NO_ERROR)
@@ -476,23 +492,27 @@ uint8_t EspNowPeer::onType(const uint8_t *incomingData, uint8_t incomingDataOffs
     }
     return incomingDataOffset;
 }
-void EspNowPeer::onMessage(const uint8_t *incomingData, int len)
+void Peer::onMessage(const uint8_t *incomingData, int len)
 {
-    Serial.print("EspNowPeer Message: ");
+#if DEBUG
+    Serial.print("Peer Message: ");
     for (uint8_t index = 0; index < len; index++)
     {
         Serial.print(incomingData[index]);
         Serial.print(',');
     }
     Serial.println();
+#endif
 
     uint8_t incomingDataOffset = 0;
     MessageType messageType;
     while (incomingDataOffset < len)
     {
         messageType = (MessageType)incomingData[incomingDataOffset++];
+#if DEBUG
         Serial.print("Message Type from peer: ");
         Serial.println((uint8_t)messageType);
+#endif
         switch (messageType)
         {
         case MessageType::TIMESTAMP:
@@ -529,11 +549,6 @@ void EspNowPeer::onMessage(const uint8_t *incomingData, int len)
             incomingDataOffset = len;
             break;
         }
-        Serial.print("new peer message offset: ");
-        Serial.println(incomingDataOffset);
-
-        Serial.print("continue parsing? ");
-        Serial.println(incomingDataOffset < len);
     }
 
     shouldSend = (messageMap.size() > 0);
@@ -542,7 +557,7 @@ void EspNowPeer::onMessage(const uint8_t *incomingData, int len)
     shouldSendToClient = shouldSendToClient || (clientMessageMap.size() > 0) || (deviceClientMessageMaps.size() > 0);
 }
 
-void EspNowPeer::batteryLevelLoop()
+void Peer::batteryLevelLoop()
 {
     if (isAvailable && !didSendBatteryLevel && didUpdateBatteryLevelAtLeastOnce)
     {
@@ -552,7 +567,7 @@ void EspNowPeer::batteryLevelLoop()
         shouldSendToClient = true;
     }
 }
-void EspNowPeer::BatteryLevelLoop()
+void Peer::BatteryLevelLoop()
 {
     for (auto peerIterator = peers.begin(); peerIterator != peers.end(); peerIterator++)
     {
@@ -560,7 +575,7 @@ void EspNowPeer::BatteryLevelLoop()
     }
 }
 
-void EspNowPeer::motionCalibrationLoop()
+void Peer::motionCalibrationLoop()
 {
     if (isAvailable && !motion.didSendCalibration && motion.didUpdateCalibrationAtLeastOnce)
     {
@@ -569,7 +584,7 @@ void EspNowPeer::motionCalibrationLoop()
         shouldSendToClient = true;
     }
 }
-void EspNowPeer::MotionCalibrationLoop()
+void Peer::MotionCalibrationLoop()
 {
     for (auto peerIterator = peers.begin(); peerIterator != peers.end(); peerIterator++)
     {
@@ -577,19 +592,19 @@ void EspNowPeer::MotionCalibrationLoop()
     }
 }
 
-void EspNowPeer::motionDataLoop()
+void Peer::motionDataLoop()
 {
     if (isAvailable && !motion.didSendData && motion.didUpdateDataAtLeastOnce)
     {
         deviceClientMessageMaps[deviceIndex][MessageType::MOTION_DATA].push_back(motion.data.size());
         deviceClientMessageMaps[deviceIndex][MessageType::MOTION_DATA].insert(deviceClientMessageMaps[deviceIndex][MessageType::MOTION_DATA].end(), motion.data.begin(), motion.data.end());
         motion.didSendData = true;
-        
+
         shouldSendToClient = true;
         includeTimestampInClientMessage = true;
     }
 }
-void EspNowPeer::MotionDataLoop()
+void Peer::MotionDataLoop()
 {
     for (auto peerIterator = peers.begin(); peerIterator != peers.end(); peerIterator++)
     {

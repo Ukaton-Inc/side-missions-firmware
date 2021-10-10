@@ -1,6 +1,6 @@
 #pragma once
-#ifndef _ESP_NOW_PEER_
-#define _ESP_NOW_PEER_
+#ifndef _PEER_
+#define _PEER_
 
 #include "definitions.h"
 #include "motion.h"
@@ -12,17 +12,17 @@
 
 #include "wifiServer.h"
 
-class EspNowPeer
+class Peer
 {
 private:
-    static std::vector<EspNowPeer *> peers;
+    static std::vector<Peer *> peers;
 
 public:
     static uint8_t getNumberOfPeers();
 
 public:
-    EspNowPeer(const uint8_t *macAddress);
-    ~EspNowPeer();
+    Peer(const uint8_t *macAddress);
+    ~Peer();
 
 private:
     uint8_t index;
@@ -32,7 +32,7 @@ public:
     uint8_t getIndex();
     uint8_t getDeviceIndex();
     void setIndex(uint8_t index);
-    static EspNowPeer *getPeerByDeviceIndex(uint8_t deviceIndex);
+    static Peer *getPeerByDeviceIndex(uint8_t deviceIndex);
 
 private:
     uint8_t macAddress[MAC_ADDRESS_SIZE];
@@ -40,7 +40,7 @@ private:
 public:
     const uint8_t *getMacAddress();
     void setMacAddress(const uint8_t *macAddress);
-    static EspNowPeer *getPeerByMacAddress(const uint8_t *macAddress);
+    static Peer *getPeerByMacAddress(const uint8_t *macAddress);
 
 public:
     esp_err_t connect();
@@ -176,4 +176,4 @@ public:
     static void MotionDataLoop();
 };
 
-#endif // _ESP_NOW_PEER_
+#endif // _PEER_

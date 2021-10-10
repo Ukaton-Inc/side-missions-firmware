@@ -7,7 +7,7 @@
 #include <esp_now.h>
 #include <esp_wifi.h>
 
-#include "EspNowPeer.h"
+#include "Peer.h"
 
 namespace wifiServer
 {
@@ -84,9 +84,11 @@ namespace wifiServer
             }
         }
 
-        if (motionData.size() > 0) {
+        if (motionData.size() > 0)
+        {
             Serial.print("MOTION DATA: ");
-            for (auto iterator = motionData.begin(); iterator != motionData.end(); iterator++) {
+            for (auto iterator = motionData.begin(); iterator != motionData.end(); iterator++)
+            {
                 Serial.print(*iterator);
                 Serial.print(',');
             }
@@ -106,7 +108,7 @@ namespace wifiServer
         return areEqual;
     }
 
-#if IS_ESP_NOW_RECEIVER
+#if IS_RECEIVER
 
     AsyncWebServer server(80);
 
@@ -119,7 +121,7 @@ namespace wifiServer
 
     uint8_t getNumberOfDevices()
     {
-        return EspNowPeer::getNumberOfPeers() + 1;
+        return Peer::getNumberOfPeers() + 1;
     }
 
     std::map<MessageType, std::vector<uint8_t>> clientMessageMap;
@@ -128,11 +130,11 @@ namespace wifiServer
 
     void onClientConnection()
     {
-        EspNowPeer::OnClientConnection();
+        Peer::OnClientConnection();
     }
     void onClientDisconnection()
     {
-        EspNowPeer::OnClientDisconnection();
+        Peer::OnClientDisconnection();
         memset(&motionConfiguration, 0, sizeof(motionConfiguration));
         sentClientNumberOfDevices = false;
     }
@@ -146,7 +148,7 @@ namespace wifiServer
         data.push_back(1); // receiver is always available
         for (uint8_t deviceIndex = 1; deviceIndex < numberOfDevices; deviceIndex++)
         {
-            auto peer = EspNowPeer::getPeerByDeviceIndex(deviceIndex);
+            auto peer = Peer::getPeerByDeviceIndex(deviceIndex);
             data.push_back(peer->getAvailability() ? 1 : 0);
         }
         clientMessageMap[MessageType::GET_NUMBER_OF_DEVICES] = data;
@@ -169,7 +171,7 @@ namespace wifiServer
         {
             try
             {
-                auto peer = EspNowPeer::getPeerByDeviceIndex(deviceIndex);
+                auto peer = Peer::getPeerByDeviceIndex(deviceIndex);
                 if (peer->didUpdateNameAtLeastOnce)
                 {
                     if (deviceClientMessageMaps[deviceIndex].count(MessageType::SET_NAME) == 0)
@@ -221,7 +223,7 @@ namespace wifiServer
         {
             try
             {
-                auto peer = EspNowPeer::getPeerByDeviceIndex(deviceIndex);
+                auto peer = Peer::getPeerByDeviceIndex(deviceIndex);
                 std::vector<uint8_t> data;
                 data.push_back(nameLength);
                 data.insert(data.end(), newName, newName + nameLength);
@@ -252,7 +254,7 @@ namespace wifiServer
         {
             try
             {
-                auto peer = EspNowPeer::getPeerByDeviceIndex(deviceIndex);
+                auto peer = Peer::getPeerByDeviceIndex(deviceIndex);
                 if (peer->didUpdateNameAtLeastOnce)
                 {
                     uint8_t data[2];
@@ -289,7 +291,7 @@ namespace wifiServer
         {
             try
             {
-                auto peer = EspNowPeer::getPeerByDeviceIndex(deviceIndex);
+                auto peer = Peer::getPeerByDeviceIndex(deviceIndex);
                 if (peer->motion.didUpdateConfigurationAtLeastOnce)
                 {
                     uint8_t data[1 + sizeof(peer->motion.configuration)];
@@ -329,7 +331,7 @@ namespace wifiServer
         {
             try
             {
-                auto peer = EspNowPeer::getPeerByDeviceIndex(deviceIndex);
+                auto peer = Peer::getPeerByDeviceIndex(deviceIndex);
                 peer->messageMap[MessageType::SET_MOTION_CONFIGURATION].assign((uint8_t *)_motionConfiguration, (uint8_t *)_motionConfiguration + sizeof(motionConfiguration));
             }
             catch (const std::out_of_range &error)
@@ -348,6 +350,7 @@ namespace wifiServer
         auto info = (AwsFrameInfo *)arg;
         if (info->final && info->index == 0 && info->len == len)
         {
+#if DEBUG
             Serial.print("WebSocket: ");
             for (uint8_t index = 0; index < len; index++)
             {
@@ -355,14 +358,17 @@ namespace wifiServer
                 Serial.print(',');
             }
             Serial.println();
+#endif
 
             uint8_t dataOffset = 0;
             MessageType messageType;
             while (dataOffset < len)
             {
                 messageType = (MessageType)data[dataOffset++];
+#if DEBUG
                 Serial.print("Message Type from client: ");
                 Serial.println((uint8_t)messageType);
+#endif
 
                 switch (messageType)
                 {
@@ -417,7 +423,9 @@ namespace wifiServer
             }
             break;
         case WS_EVT_DATA:
+#if DEBUG
             Serial.printf("Message of size #%u\n", len);
+#endif
             onWebSocketMessage(client, arg, data, len);
             break;
         case WS_EVT_PONG:
@@ -449,12 +457,16 @@ namespace wifiServer
                 {
                     for (auto deviceClientMessagesIterator = deviceClientMessageMaps.begin(); deviceClientMessagesIterator != deviceClientMessageMaps.end(); deviceClientMessagesIterator++)
                     {
+#if DEBUG
                         Serial.print("INDEX: ");
                         Serial.println((uint8_t)deviceClientMessagesIterator->first);
+#endif
                         for (auto deviceClientMessageIterator = deviceClientMessagesIterator->second.begin(); deviceClientMessageIterator != deviceClientMessagesIterator->second.end(); deviceClientMessageIterator++)
                         {
+#if DEBUG
                             Serial.print("MESSAGE TYPE: ");
                             Serial.println((uint8_t)deviceClientMessageIterator->first);
+#endif
                             clientMessageData.push_back((uint8_t)deviceClientMessageIterator->first);
                             clientMessageData.push_back(deviceClientMessagesIterator->first);
                             clientMessageData.insert(clientMessageData.end(), deviceClientMessageIterator->second.begin(), deviceClientMessageIterator->second.end());
@@ -462,6 +474,7 @@ namespace wifiServer
                     }
                 }
 
+#if DEBUG
                 Serial.print("Sending to client...");
                 Serial.print(clientMessageMap.size());
                 Serial.print(',');
@@ -474,6 +487,7 @@ namespace wifiServer
                     Serial.print(',');
                 }
                 Serial.println();
+#endif
 
                 webSocket.binaryAll(clientMessageData.data(), clientMessageData.size());
 
@@ -489,16 +503,18 @@ namespace wifiServer
     // ESP NOW
     void onEspNowDataReceived(const uint8_t *macAddress, const uint8_t *incomingData, int len)
     {
+#if DEBUG
         char macAddressString[18];
         Serial.print("Packet received from: ");
         snprintf(macAddressString, sizeof(macAddressString), "%02x:%02x:%02x:%02x:%02x:%02x",
                  macAddress[0], macAddress[1], macAddress[2], macAddress[3], macAddress[4], macAddress[5]);
         Serial.println(macAddressString);
+#endif
 
-        auto peer = EspNowPeer::getPeerByMacAddress(macAddress);
+        auto peer = Peer::getPeerByMacAddress(macAddress);
         if (peer == nullptr)
         {
-            peer = new EspNowPeer(macAddress);
+            peer = new Peer(macAddress);
             if (isConnectedToClient())
             {
                 deviceClientMessageMaps[peer->getDeviceIndex()][MessageType::DEVICE_ADDED];
@@ -516,26 +532,34 @@ namespace wifiServer
         }
         else
         {
+#if DEBUG
             Serial.println("already connected to peer");
+#endif
         }
 
         peer->onMessage(incomingData, len);
     }
     void onEspNowDataSent(const uint8_t *macAddress, esp_now_send_status_t status)
     {
-        auto peer = EspNowPeer::getPeerByMacAddress(macAddress);
+        auto peer = Peer::getPeerByMacAddress(macAddress);
         if (peer != nullptr)
         {
+#if DEBUG
             Serial.print("\r\nLast Packet Send Status:\t");
+#endif
             if (status == ESP_NOW_SEND_SUCCESS)
             {
+#if DEBUG
                 Serial.println("Delivery Success");
+#endif
                 peer->updateAvailability(true);
             }
             else
             {
+#if DEBUG
                 Serial.print("Delivery Failed: ");
                 Serial.println(status);
+#endif
 
                 peer->updateAvailability(false);
 
@@ -596,7 +620,7 @@ namespace wifiServer
                 deviceClientMessageMaps[0][MessageType::BATTERY_LEVEL].assign(data, data + sizeof(data));
                 shouldSendToClient = true;
 
-                EspNowPeer::BatteryLevelLoop();
+                Peer::BatteryLevelLoop();
             }
             previousBatteryLevelMillis = currentMillis - (currentMillis % batteryLevelInterval);
         }
@@ -609,7 +633,7 @@ namespace wifiServer
             deviceClientMessageMaps[0][MessageType::MOTION_CALIBRATION].assign(motion::calibration, motion::calibration + sizeof(motion::calibration));
             shouldSendToClient = true;
 
-            EspNowPeer::MotionCalibrationLoop();
+            Peer::MotionCalibrationLoop();
 
             previousMotionCalibrationMillis = currentMillis - (currentMillis % motionCalibrationInterval);
         }
@@ -622,12 +646,12 @@ namespace wifiServer
         {
             deviceClientMessageMaps[0][MessageType::MOTION_DATA].push_back(motionData.size());
             deviceClientMessageMaps[0][MessageType::MOTION_DATA].insert(deviceClientMessageMaps[0][MessageType::MOTION_DATA].end(), motionData.begin(), motionData.end());
-            
+
             shouldSendToClient = true;
             includeTimestampInClientMessage = true;
         }
 
-        EspNowPeer::MotionDataLoop();
+        Peer::MotionDataLoop();
     }
 
     void pressureDataLoop()
@@ -665,8 +689,8 @@ namespace wifiServer
             motionCalibrationLoop();
             dataLoop();
         }
-        EspNowPeer::pingLoop();
-        EspNowPeer::sendAll();
+        Peer::pingLoop();
+        Peer::sendAll();
         webSocketLoop();
     }
 
@@ -762,14 +786,17 @@ namespace wifiServer
     }
     void onEspNowDataReceived(const uint8_t *macAddress, const uint8_t *incomingData, int len)
     {
+#if DEBUG
         char macAddressString[18];
         Serial.print("Packet received from: ");
         snprintf(macAddressString, sizeof(macAddressString), "%02x:%02x:%02x:%02x:%02x:%02x",
                  macAddress[0], macAddress[1], macAddress[2], macAddress[3], macAddress[4], macAddress[5]);
         Serial.println(macAddressString);
+#endif
 
         if (areMacAddressesEqual(macAddress, receiverMacAddress))
         {
+#if DEBUG
             Serial.print("EspNowReceiver: ");
             for (uint8_t index = 0; index < len; index++)
             {
@@ -777,6 +804,7 @@ namespace wifiServer
                 Serial.print(',');
             }
             Serial.println();
+#endif
 
             uint8_t incomingDataOffset = 0;
             MessageType messageType;
@@ -784,8 +812,10 @@ namespace wifiServer
             {
                 messageType = (MessageType)incomingData[incomingDataOffset++];
 
+#if DEBUG
                 Serial.print("Message Type from receiver: ");
                 Serial.println((uint8_t)messageType);
+#endif
 
                 switch (messageType)
                 {
@@ -828,12 +858,16 @@ namespace wifiServer
     }
     void onEspNowDataSent(const uint8_t *macAddress, esp_now_send_status_t status)
     {
+        #if DEBUG
         Serial.print("\r\nLast Packet Send Status:\t");
+        #endif
 
         bool _isConnectedToReceiver;
         if (status == ESP_NOW_SEND_SUCCESS)
         {
+            #if DEBUG
             Serial.println("Delivery Success");
+            #endif
             _isConnectedToReceiver = true;
         }
         else
@@ -972,6 +1006,7 @@ namespace wifiServer
                 receiverMessageData.insert(receiverMessageData.end(), receiverMessageIterator->second.begin(), receiverMessageIterator->second.end());
             }
 
+            #if DEBUG
             Serial.print("Sending to Receiver: ");
             for (uint8_t index = 0; index < receiverMessageData.size(); index++)
             {
@@ -979,11 +1014,14 @@ namespace wifiServer
                 Serial.print(',');
             }
             Serial.println();
+            #endif
 
             esp_err_t result = esp_now_send(receiverMacAddress, receiverMessageData.data(), receiverMessageData.size());
             if (result == ESP_OK)
             {
+                #if DEBUG
                 Serial.println("Delivery Success");
+                #endif
             }
             else
             {
