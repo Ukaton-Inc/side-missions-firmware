@@ -84,6 +84,7 @@ namespace wifiServer
             }
         }
 
+#if DEBUG
         if (motionData.size() > 0)
         {
             Serial.print("MOTION DATA: ");
@@ -94,6 +95,7 @@ namespace wifiServer
             }
             Serial.println();
         }
+#endif
 
         return motionData;
     }
@@ -614,6 +616,8 @@ namespace wifiServer
     {
         if (currentMillis - previousBatteryLevelMillis >= batteryLevelInterval)
         {
+            previousBatteryLevelMillis = currentMillis - (currentMillis % batteryLevelInterval);
+
             if (isConnectedToClient())
             {
                 uint8_t data[1]{battery::getBatteryLevel()};
@@ -622,7 +626,6 @@ namespace wifiServer
 
                 Peer::BatteryLevelLoop();
             }
-            previousBatteryLevelMillis = currentMillis - (currentMillis % batteryLevelInterval);
         }
     }
 
@@ -630,12 +633,12 @@ namespace wifiServer
     {
         if (currentMillis - previousMotionCalibrationMillis >= motionCalibrationInterval)
         {
+            previousMotionCalibrationMillis = currentMillis - (currentMillis % motionCalibrationInterval);
+
             deviceClientMessageMaps[0][MessageType::MOTION_CALIBRATION].assign(motion::calibration, motion::calibration + sizeof(motion::calibration));
             shouldSendToClient = true;
 
             Peer::MotionCalibrationLoop();
-
-            previousMotionCalibrationMillis = currentMillis - (currentMillis % motionCalibrationInterval);
         }
     }
 
@@ -663,6 +666,8 @@ namespace wifiServer
     {
         if (currentMillis - previousDataMillis >= dataInterval)
         {
+            previousDataMillis = currentMillis - (currentMillis % dataInterval);
+
             motionDataLoop();
             pressureDataLoop();
 
@@ -674,8 +679,6 @@ namespace wifiServer
 
                 includeTimestampInClientMessage = false;
             }
-
-            previousDataMillis = currentMillis - (currentMillis % dataInterval);
         }
     }
 
@@ -858,16 +861,16 @@ namespace wifiServer
     }
     void onEspNowDataSent(const uint8_t *macAddress, esp_now_send_status_t status)
     {
-        #if DEBUG
+#if DEBUG
         Serial.print("\r\nLast Packet Send Status:\t");
-        #endif
+#endif
 
         bool _isConnectedToReceiver;
         if (status == ESP_NOW_SEND_SUCCESS)
         {
-            #if DEBUG
+#if DEBUG
             Serial.println("Delivery Success");
-            #endif
+#endif
             _isConnectedToReceiver = true;
         }
         else
@@ -923,11 +926,11 @@ namespace wifiServer
     {
         if (currentMillis - previousBatteryLevelMillis >= batteryLevelInterval)
         {
+            previousBatteryLevelMillis = currentMillis - (currentMillis % batteryLevelInterval);
+
             uint8_t data[1]{battery::getBatteryLevel()};
             receiverMessageMap[MessageType::BATTERY_LEVEL].assign(data, data + sizeof(data));
             shouldSendToReceiver = true;
-
-            previousBatteryLevelMillis = currentMillis - (currentMillis % batteryLevelInterval);
         }
     }
 
@@ -935,10 +938,10 @@ namespace wifiServer
     {
         if (currentMillis - previousMotionCalibrationMillis >= motionCalibrationInterval)
         {
+            previousMotionCalibrationMillis = currentMillis - (currentMillis % motionCalibrationInterval);
+
             receiverMessageMap[MessageType::MOTION_CALIBRATION].assign(motion::calibration, motion::calibration + sizeof(motion::calibration));
             shouldSendToReceiver = true;
-
-            previousMotionCalibrationMillis = currentMillis - (currentMillis % motionCalibrationInterval);
         }
     }
 
@@ -964,6 +967,8 @@ namespace wifiServer
     {
         if (currentMillis - previousDataMillis >= dataInterval)
         {
+            previousDataMillis = currentMillis - (currentMillis % dataInterval);
+
             motionDataLoop();
             pressureDataLoop();
 
@@ -975,8 +980,6 @@ namespace wifiServer
 
                 includeTimestampInClientMessage = false;
             }
-
-            previousDataMillis = currentMillis - (currentMillis % dataInterval);
         }
     }
 
@@ -986,12 +989,12 @@ namespace wifiServer
     {
         if (currentMillis - previousPingMillis >= pingInterval)
         {
+            previousPingMillis = currentMillis - (currentMillis % pingInterval);
             if (!shouldSendToReceiver)
             {
                 receiverMessageMap[MessageType::PING];
                 shouldSendToReceiver = true;
             }
-            previousPingMillis = currentMillis - (currentMillis % pingInterval);
         }
     }
 
@@ -1006,7 +1009,7 @@ namespace wifiServer
                 receiverMessageData.insert(receiverMessageData.end(), receiverMessageIterator->second.begin(), receiverMessageIterator->second.end());
             }
 
-            #if DEBUG
+#if DEBUG
             Serial.print("Sending to Receiver: ");
             for (uint8_t index = 0; index < receiverMessageData.size(); index++)
             {
@@ -1014,14 +1017,14 @@ namespace wifiServer
                 Serial.print(',');
             }
             Serial.println();
-            #endif
+#endif
 
             esp_err_t result = esp_now_send(receiverMacAddress, receiverMessageData.data(), receiverMessageData.size());
             if (result == ESP_OK)
             {
-                #if DEBUG
+#if DEBUG
                 Serial.println("Delivery Success");
-                #endif
+#endif
             }
             else
             {

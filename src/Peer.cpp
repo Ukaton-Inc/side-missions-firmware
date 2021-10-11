@@ -322,21 +322,83 @@ uint8_t Peer::onMotionData(const uint8_t *incomingData, uint8_t incomingDataOffs
 }
 void Peer::Motion::updateData(const uint8_t *_data, size_t length)
 {
-    data.assign(_data, _data + length);
-    didUpdateDataAtLeastOnce = true;
-    didSendData = false;
+    uint8_t dataOffset = 0;
+    while (dataOffset < length)
+    {
+        auto dataType = (motion::DataType)_data[dataOffset++];
+        uint8_t dataSize = 0;
+        switch (dataType)
+        {
+        case motion::DataType::ACCELERATION:
+        case motion::DataType::GRAVITY:
+        case motion::DataType::LINEAR_ACCELERATION:
+        case motion::DataType::ROTATION_RATE:
+        case motion::DataType::MAGNETOMETER:
+            dataSize = 6;
+            break;
+        case motion::DataType::QUATERNION:
+            dataSize = 8;
+            break;
+        default:
+            Serial.print("uncaught motion data type: ");
+            Serial.println((uint8_t)dataType);
+            break;
+        }
+
+        if (dataSize > 0)
+        {
+            data[dataType].assign((int16_t *)&_data[dataOffset], (int16_t *)(&_data[dataOffset] + dataSize));
+            didSendData[dataType] = false;
+            dataOffset += dataSize;
 
 #if DEBUG
-    Serial.print("updated motion data of size ");
-    Serial.print(data.size());
-    Serial.print(": ");
-    for (auto iterator = data.begin(); iterator != data.end(); iterator++)
-    {
-        Serial.print(*iterator);
-        Serial.print(',');
-    }
-    Serial.println();
+            Serial.print("Motion Data type #");
+            Serial.print((uint8_t)dataType);
+            Serial.print(": ");
+            for (auto iterator = data[dataType].begin(); iterator != data[dataType].end(); iterator++)
+            {
+                Serial.print(*iterator);
+                Serial.print(',');
+            }
+            Serial.println();
 #endif
+        }
+    }
+}
+
+std::vector<uint8_t> Peer::Motion::getData()
+{
+    std::vector<uint8_t> motionData;
+    for (uint8_t dataTypeIndex = 0; dataTypeIndex < (uint8_t)motion::DataType::COUNT; dataTypeIndex++)
+    {
+        auto dataType = (motion::DataType)dataTypeIndex;
+
+        if (configuration[dataTypeIndex] != 0 && previousDataMillis % configuration[dataTypeIndex] == 0)
+        {
+            if (didSendData.count(dataType) == 1 && !didSendData[dataType] && data.count(dataType) == 1) {
+                motionData.push_back((uint8_t)dataType);
+                for (auto iterator = data[dataType].begin(); iterator != data[dataType].end(); iterator++) {
+                    motionData.push_back(lowByte(*iterator));
+                    motionData.push_back(highByte(*iterator));
+                }
+            }
+        }
+    }
+
+#if DEBUG
+    if (motionData.size() > 0)
+    {
+        Serial.print("MOTION DATA: ");
+        for (auto iterator = motionData.begin(); iterator != motionData.end(); iterator++)
+        {
+            Serial.print(*iterator);
+            Serial.print(',');
+        }
+        Serial.println();
+    }
+#endif
+
+    return motionData;
 }
 
 void Peer::send()
@@ -594,14 +656,18 @@ void Peer::MotionCalibrationLoop()
 
 void Peer::motionDataLoop()
 {
-    if (isAvailable && !motion.didSendData && motion.didUpdateDataAtLeastOnce)
+    if (isAvailable)
     {
-        deviceClientMessageMaps[deviceIndex][MessageType::MOTION_DATA].push_back(motion.data.size());
-        deviceClientMessageMaps[deviceIndex][MessageType::MOTION_DATA].insert(deviceClientMessageMaps[deviceIndex][MessageType::MOTION_DATA].end(), motion.data.begin(), motion.data.end());
-        motion.didSendData = true;
+        auto motionData = motion.getData();
+        if (motionData.size() > 0) {
+            deviceClientMessageMaps[deviceIndex][MessageType::MOTION_DATA].push_back(motionData.size());
+            deviceClientMessageMaps[deviceIndex][MessageType::MOTION_DATA].insert(deviceClientMessageMaps[deviceIndex][MessageType::MOTION_DATA].end(), motionData.begin(), motionData.end());
 
-        shouldSendToClient = true;
-        includeTimestampInClientMessage = true;
+            shouldSendToClient = true;
+            includeTimestampInClientMessage = true;
+
+            motion.didSendData.clear();
+        }
     }
 }
 void Peer::MotionDataLoop()

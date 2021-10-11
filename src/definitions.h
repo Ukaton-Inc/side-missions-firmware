@@ -2,13 +2,13 @@
 #ifndef _DEFINITIONS_
 #define _DEFINITIONS_
 
-#define DEBUG true
+#define DEBUG false
 
 #define CPU_FREQUENCY_MHZ 80
 
 #define MAC_ADDRESS_SIZE 6
 
-#define IS_RECEIVER true
+#define IS_RECEIVER false
 
 #define NAME "Ukaton Motion Module"
 

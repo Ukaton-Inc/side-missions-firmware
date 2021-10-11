@@ -67,8 +67,9 @@ namespace wifiServer
     extern unsigned long lastTimeConnected;
 
     extern unsigned long currentMillis;
+    extern unsigned long previousDataMillis;
 
-    const long dataInterval = 20;
+    const unsigned long dataInterval = 20;
     extern bool includeTimestampInClientMessage;
 
     void setup();

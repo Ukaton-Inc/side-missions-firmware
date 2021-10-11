@@ -100,7 +100,6 @@ public:
 private:
     class Motion
     {
-
     public:
         uint8_t calibration[(uint8_t)motion::CalibrationType::COUNT];
         void updateCalibration(const uint8_t *calibration);
@@ -113,10 +112,10 @@ private:
         bool didUpdateConfigurationAtLeastOnce = false;
 
     public:
-        std::vector<uint8_t> data;
+        std::map<motion::DataType, std::vector<int16_t>> data;
         void updateData(const uint8_t *data, size_t length);
-        bool didUpdateDataAtLeastOnce = false;
-        bool didSendData = false;
+        std::map<motion::DataType, bool> didSendData;
+        std::vector<uint8_t> getData();
     };
 
 public:
