@@ -165,6 +165,7 @@ void Peer::updateAvailability(bool _isAvailable)
 
     if (!isAvailable)
     {
+        didUpdateDelayAtLeastOnce = false;
         didUpdateNameAtLeastOnce = false;
         didUpdateDeviceTypeAtLeastOnce = false;
         didUpdateBatteryLevelAtLeastOnce = false;
@@ -176,6 +177,20 @@ void Peer::updateAvailability(bool _isAvailable)
     Serial.print("updated availability: ");
     Serial.println(isAvailable);
 #endif
+}
+
+void Peer::updateDelay() {
+    if (!didUpdateDelayAtLeastOnce) {
+        delayMillis = millis() % dataInterval;
+        messageMap[MessageType::TIMESTAMP_DELAY].assign((uint8_t *)&delayMillis, ((uint8_t *)&delayMillis) + sizeof(delayMillis));
+
+        #if DEBUG
+        Serial.print("updated delay: ");
+        Serial.println(delayMillis);
+        #endif
+
+        didUpdateDelayAtLeastOnce = true;
+    }
 }
 
 unsigned long Peer::getTimestamp()
@@ -565,6 +580,8 @@ void Peer::onMessage(const uint8_t *incomingData, int len)
     }
     Serial.println();
 #endif
+
+    updateDelay();
 
     uint8_t incomingDataOffset = 0;
     MessageType messageType;

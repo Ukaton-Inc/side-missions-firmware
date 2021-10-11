@@ -38,7 +38,7 @@ namespace wifiServer
         GET_TYPE,
 
         MOTION_CALIBRATION,
-        
+
         GET_MOTION_CONFIGURATION,
         SET_MOTION_CONFIGURATION,
 
@@ -49,9 +49,11 @@ namespace wifiServer
         PRESSURE_DATA,
 
         PING,
-        
+
         CLIENT_CONNECTED,
-        CLIENT_DISCONNECTED
+        CLIENT_DISCONNECTED,
+
+        TIMESTAMP_DELAY
     };
 
     enum class ErrorMessageType : uint8_t
@@ -69,7 +71,7 @@ namespace wifiServer
     extern unsigned long currentMillis;
     extern unsigned long previousDataMillis;
 
-    const unsigned long dataInterval = 20;
+    const uint8_t dataInterval = 20;
     extern bool includeTimestampInClientMessage;
 
     void setup();

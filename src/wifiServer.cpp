@@ -20,10 +20,10 @@ namespace wifiServer
     bool sentClientNumberOfDevices = false;
 
     unsigned long previousBatteryLevelMillis = 0;
-    const unsigned long batteryLevelInterval = 20000;
+    const uint16_t batteryLevelInterval = 20000;
 
     unsigned long previousMotionCalibrationMillis = 0;
-    const unsigned long motionCalibrationInterval = 1000;
+    const uint16_t motionCalibrationInterval = 1000;
 
     unsigned long previousDataMillis = 0;
 
@@ -673,10 +673,7 @@ namespace wifiServer
 
             if (includeTimestampInClientMessage)
             {
-                uint8_t timestamp[sizeof(currentMillis)];
-                memcpy(timestamp, &currentMillis, sizeof(currentMillis));
-                clientMessageMap[MessageType::TIMESTAMP].assign(timestamp, timestamp + sizeof(timestamp));
-
+                clientMessageMap[MessageType::TIMESTAMP].assign((uint8_t *)&currentMillis, ((uint8_t *)&currentMillis) + sizeof(currentMillis));
                 includeTimestampInClientMessage = false;
             }
         }
@@ -706,6 +703,8 @@ namespace wifiServer
     {
         return isConnectedToReceiver && _isConnectedToClient;
     }
+
+    uint8_t delayMillis = 0;
 
     std::map<MessageType, std::vector<uint8_t>> receiverMessageMap;
     bool shouldSendToReceiver = false;
@@ -787,6 +786,14 @@ namespace wifiServer
         receiverMessageMap[MessageType::SET_MOTION_CONFIGURATION].assign(data, data + sizeof(data));
         return incomingDataOffset;
     }
+    uint8_t onReceiverRequestSetDelay(const uint8_t *incomingData, uint8_t incomingDataOffset)
+    {
+        delayMillis = incomingData[incomingDataOffset++];
+        Serial.print("updated delay: ");
+        Serial.println(delayMillis);
+        return incomingDataOffset;
+    }
+
     void onEspNowDataReceived(const uint8_t *macAddress, const uint8_t *incomingData, int len)
     {
 #if DEBUG
@@ -847,6 +854,9 @@ namespace wifiServer
                     Serial.println("disconnected from client");
                     _isConnectedToClient = false;
                     memset(&motionConfiguration, 0, sizeof(motionConfiguration));
+                    break;
+                case MessageType::TIMESTAMP_DELAY:
+                    incomingDataOffset = onReceiverRequestSetDelay(incomingData, incomingDataOffset);
                     break;
                 default:
                     Serial.print("uncaught receiver message type: ");
@@ -984,7 +994,7 @@ namespace wifiServer
     }
 
     unsigned long previousPingMillis = 0;
-    const unsigned long pingInterval = 2000;
+    const uint16_t pingInterval = 2000;
     void pingLoop()
     {
         if (currentMillis - previousPingMillis >= pingInterval)
@@ -1039,7 +1049,7 @@ namespace wifiServer
 
     void loop()
     {
-        currentMillis = millis();
+        currentMillis = millis() - (delayMillis + (dataInterval/2));
         if (isConnectedToClient())
         {
             lastTimeConnected = currentMillis;

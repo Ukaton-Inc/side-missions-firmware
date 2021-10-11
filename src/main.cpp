@@ -6,6 +6,7 @@
 #include "eepromUtils.h"
 #include "name.h"
 #include "motion.h"
+#include "pressure.h"
 #include "wifiServer.h"
 #include "powerManagement.h"
 
@@ -17,6 +18,7 @@ void setup()
     eepromUtils::setup();
     name::setup();
     motion::setup();
+    pressure::setup();
     wifiServer::setup();
     powerManagement::setup();
 }

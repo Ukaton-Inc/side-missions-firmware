@@ -65,6 +65,11 @@ public:
     void updateAvailability(bool isAvailable);
 
 private:
+    uint8_t delayMillis = 0;
+    bool didUpdateDelayAtLeastOnce = false;
+    void updateDelay();
+
+private:
     unsigned long timestamp;
 
 public:
