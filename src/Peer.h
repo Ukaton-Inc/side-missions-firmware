@@ -4,6 +4,7 @@
 
 #include "definitions.h"
 #include "motion.h"
+#include "pressure.h"
 
 #include <Arduino.h>
 
@@ -131,8 +132,22 @@ public:
 
     class Pressure
     {
+    public:
+        uint16_t configuration[(uint8_t)pressure::DataType::COUNT];
+        void updateConfiguration(const uint16_t *configuration);
+        bool didUpdateConfigurationAtLeastOnce = false;
+
+    public:
+        std::map<pressure::DataType, std::vector<int16_t>> data;
+        void updateData(const uint8_t *data, size_t length);
+        std::map<pressure::DataType, bool> didSendData;
+        std::vector<uint8_t> getData();
     };
+
+public:
     Pressure *pressure = nullptr;
+    uint8_t onPressureConfiguration(const uint8_t *incomingData, uint8_t incomingDataOffset, wifiServer::MessageType messageType);
+    uint8_t onPressureData(const uint8_t *incomingData, uint8_t incomingDataOffset);
 
 private:
     bool shouldSend;
@@ -178,6 +193,12 @@ private:
 
 public:
     static void MotionDataLoop();
+
+private:
+    void pressureDataLoop();
+
+public:
+    static void PressureDataLoop();
 };
 
 #endif // _PEER_

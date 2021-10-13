@@ -1,5 +1,5 @@
-#include "Peer.h"
 #include "definitions.h"
+#include "Peer.h"
 
 using namespace wifiServer;
 
@@ -171,6 +171,10 @@ void Peer::updateAvailability(bool _isAvailable)
         didUpdateBatteryLevelAtLeastOnce = false;
         motion.didUpdateCalibrationAtLeastOnce = false;
         motion.didUpdateConfigurationAtLeastOnce = false;
+        if (pressure != nullptr)
+        {
+            pressure->didUpdateConfigurationAtLeastOnce = false;
+        }
     }
 
 #if DEBUG
@@ -179,15 +183,17 @@ void Peer::updateAvailability(bool _isAvailable)
 #endif
 }
 
-void Peer::updateDelay() {
-    if (!didUpdateDelayAtLeastOnce) {
+void Peer::updateDelay()
+{
+    if (!didUpdateDelayAtLeastOnce)
+    {
         delayMillis = millis() % dataInterval;
         messageMap[MessageType::TIMESTAMP_DELAY].assign((uint8_t *)&delayMillis, ((uint8_t *)&delayMillis) + sizeof(delayMillis));
 
-        #if DEBUG
+#if DEBUG
         Serial.print("updated delay: ");
         Serial.println(delayMillis);
-        #endif
+#endif
 
         didUpdateDelayAtLeastOnce = true;
     }
@@ -290,7 +296,7 @@ void Peer::Motion::updateConfiguration(const uint16_t *_configuration)
     didUpdateConfigurationAtLeastOnce = true;
 
 #if DEBUG
-    Serial.print("updated configuration: ");
+    Serial.print("updated motion configuration: ");
     for (uint8_t index = 0; index < (sizeof(configuration) / 2); index++)
     {
         Serial.print(configuration[index]);
@@ -390,9 +396,11 @@ std::vector<uint8_t> Peer::Motion::getData()
 
         if (configuration[dataTypeIndex] != 0 && previousDataMillis % configuration[dataTypeIndex] == 0)
         {
-            if (didSendData.count(dataType) == 1 && !didSendData[dataType] && data.count(dataType) == 1) {
+            if (didSendData.count(dataType) == 1 && !didSendData[dataType] && data.count(dataType) == 1)
+            {
                 motionData.push_back((uint8_t)dataType);
-                for (auto iterator = data[dataType].begin(); iterator != data[dataType].end(); iterator++) {
+                for (auto iterator = data[dataType].begin(); iterator != data[dataType].end(); iterator++)
+                {
                     motionData.push_back(lowByte(*iterator));
                     motionData.push_back(highByte(*iterator));
                 }
@@ -414,6 +422,168 @@ std::vector<uint8_t> Peer::Motion::getData()
 #endif
 
     return motionData;
+}
+
+void Peer::Pressure::updateConfiguration(const uint16_t *_configuration)
+{
+    memcpy(configuration, _configuration, sizeof(configuration));
+    for (uint8_t dataType = 0; dataType < (uint8_t)pressure::DataType::COUNT; dataType++)
+    {
+        configuration[dataType] -= configuration[dataType] % dataInterval;
+    }
+    didUpdateConfigurationAtLeastOnce = true;
+
+#if DEBUG
+    Serial.print("updated pressure configuration: ");
+    for (uint8_t index = 0; index < (sizeof(configuration) / 2); index++)
+    {
+        Serial.print(configuration[index]);
+        Serial.print(',');
+    }
+    Serial.println();
+#endif
+}
+uint8_t Peer::onPressureConfiguration(const uint8_t *incomingData, uint8_t incomingDataOffset, MessageType messageType)
+{
+    ErrorMessageType errorMessageType = (ErrorMessageType)incomingData[incomingDataOffset++];
+    if (errorMessageType == ErrorMessageType::NO_ERROR)
+    {
+        if (pressure != nullptr)
+        {
+            auto pressureConfiguration = (const uint16_t *)&incomingData[incomingDataOffset];
+            pressure->updateConfiguration(pressureConfiguration);
+            incomingDataOffset += sizeof(pressure->configuration);
+
+#if DEBUG
+            Serial.print("PRESSURE CONFIGuRATION: ");
+            for (auto i = 0; i < (uint8_t)pressure::DataType::COUNT; i++)
+            {
+                Serial.print(i);
+                Serial.print(": ");
+                Serial.print(pressureConfiguration[i]);
+                Serial.print(", ");
+            }
+            Serial.println();
+#endif
+
+            if (isConnectedToClient())
+            {
+                std::vector<uint8_t> data;
+                data.push_back((uint8_t)ErrorMessageType::NO_ERROR);
+                data.insert(data.end(), (uint8_t *)pressure->configuration, ((uint8_t *)pressure->configuration) + sizeof(pressure->configuration));
+                deviceClientMessageMaps[deviceIndex][messageType] = data;
+            }
+        }
+    }
+    else
+    {
+        if (isConnectedToClient())
+        {
+            uint8_t data[1]{(uint8_t)errorMessageType};
+            deviceClientMessageMaps[deviceIndex][messageType].assign(data, data + sizeof(data));
+        }
+    }
+
+    return incomingDataOffset;
+}
+
+uint8_t Peer::onPressureData(const uint8_t *incomingData, uint8_t incomingDataOffset)
+{
+    uint8_t pressureDataLength = incomingData[incomingDataOffset++];
+    if (pressure != nullptr)
+    {
+        pressure->updateData(&incomingData[incomingDataOffset], pressureDataLength);
+    }
+    incomingDataOffset += pressureDataLength;
+    return incomingDataOffset;
+}
+void Peer::Pressure::updateData(const uint8_t *_data, size_t length)
+{
+    uint8_t dataOffset = 0;
+    while (dataOffset < length)
+    {
+        auto dataType = (pressure::DataType)_data[dataOffset++];
+        uint8_t dataSize = 0;
+        switch (dataType)
+        {
+        case pressure::DataType::SINGLE_BYTE:
+            dataSize = pressure::number_of_pressure_sensors;
+            break;
+        case pressure::DataType::DOUBLE_BYTE:
+            dataSize = pressure::number_of_pressure_sensors * 2;
+            break;
+        case pressure::DataType::CENTER_OF_MASS:
+            dataSize = sizeof(float) * 2;
+            break;
+        case pressure::DataType::MASS:
+            dataSize = sizeof(uint32_t);
+            break;
+        case pressure::DataType::HEEL_TO_TOE:
+            dataSize = sizeof(double);
+            break;
+        default:
+            Serial.print("uncaught pressure data type: ");
+            Serial.println((uint8_t)dataType);
+            dataOffset = length;
+            break;
+        }
+
+        if (dataSize > 0)
+        {
+            data[dataType].assign((int16_t *)&_data[dataOffset], (int16_t *)(&_data[dataOffset] + dataSize));
+            didSendData[dataType] = false;
+            dataOffset += dataSize;
+
+#if DEBUG
+            Serial.print("Pressure Data type #");
+            Serial.print((uint8_t)dataType);
+            Serial.print(": ");
+            for (auto iterator = data[dataType].begin(); iterator != data[dataType].end(); iterator++)
+            {
+                Serial.print(*iterator);
+                Serial.print(',');
+            }
+            Serial.println();
+#endif
+        }
+    }
+}
+
+std::vector<uint8_t> Peer::Pressure::getData()
+{
+    std::vector<uint8_t> pressureData;
+    for (uint8_t dataTypeIndex = 0; dataTypeIndex < (uint8_t)pressure::DataType::COUNT; dataTypeIndex++)
+    {
+        auto dataType = (pressure::DataType)dataTypeIndex;
+
+        if (configuration[dataTypeIndex] != 0 && previousDataMillis % configuration[dataTypeIndex] == 0)
+        {
+            if (didSendData.count(dataType) == 1 && !didSendData[dataType] && data.count(dataType) == 1)
+            {
+                pressureData.push_back((uint8_t)dataType);
+                for (auto iterator = data[dataType].begin(); iterator != data[dataType].end(); iterator++)
+                {
+                    pressureData.push_back(lowByte(*iterator));
+                    pressureData.push_back(highByte(*iterator));
+                }
+            }
+        }
+    }
+
+#if DEBUG
+    if (pressureData.size() > 0)
+    {
+        Serial.print("PRESSURE DATA: ");
+        for (auto iterator = pressureData.begin(); iterator != pressureData.end(); iterator++)
+        {
+            Serial.print(*iterator);
+            Serial.print(',');
+        }
+        Serial.println();
+    }
+#endif
+
+    return pressureData;
 }
 
 void Peer::send()
@@ -617,8 +787,12 @@ void Peer::onMessage(const uint8_t *incomingData, int len)
         case MessageType::MOTION_DATA:
             incomingDataOffset = onMotionData(incomingData, incomingDataOffset);
             break;
+        case MessageType::GET_PRESSURE_CONFIGURATION:
+        case MessageType::SET_PRESSURE_CONFIGURATION:
+            incomingDataOffset = onPressureConfiguration(incomingData, incomingDataOffset, messageType);
+            break;
         case MessageType::PRESSURE_DATA:
-            //incomingDataOffset = onPressureData(incomingData, incomingDataOffset);
+            incomingDataOffset = onPressureData(incomingData, incomingDataOffset);
             break;
         case MessageType::PING:
             break;
@@ -676,7 +850,8 @@ void Peer::motionDataLoop()
     if (isAvailable)
     {
         auto motionData = motion.getData();
-        if (motionData.size() > 0) {
+        if (motionData.size() > 0)
+        {
             deviceClientMessageMaps[deviceIndex][MessageType::MOTION_DATA].push_back(motionData.size());
             deviceClientMessageMaps[deviceIndex][MessageType::MOTION_DATA].insert(deviceClientMessageMaps[deviceIndex][MessageType::MOTION_DATA].end(), motionData.begin(), motionData.end());
 
@@ -692,5 +867,30 @@ void Peer::MotionDataLoop()
     for (auto peerIterator = peers.begin(); peerIterator != peers.end(); peerIterator++)
     {
         (*peerIterator)->motionDataLoop();
+    }
+}
+
+void Peer::pressureDataLoop()
+{
+    if (isAvailable && pressure != nullptr)
+    {
+        auto pressureData = pressure->getData();
+        if (pressureData.size() > 0)
+        {
+            deviceClientMessageMaps[deviceIndex][MessageType::PRESSURE_DATA].push_back(pressureData.size());
+            deviceClientMessageMaps[deviceIndex][MessageType::PRESSURE_DATA].insert(deviceClientMessageMaps[deviceIndex][MessageType::PRESSURE_DATA].end(), pressureData.begin(), pressureData.end());
+
+            shouldSendToClient = true;
+            includeTimestampInClientMessage = true;
+
+            pressure->didSendData.clear();
+        }
+    }
+}
+void Peer::PressureDataLoop()
+{
+    for (auto peerIterator = peers.begin(); peerIterator != peers.end(); peerIterator++)
+    {
+        (*peerIterator)->pressureDataLoop();
     }
 }

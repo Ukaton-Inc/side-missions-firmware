@@ -2,6 +2,7 @@
 #ifndef _PRESSURE_
 #define _PRESSURE_
 
+#include <Arduino.h>
 #include <lwipopts.h>
 
 namespace pressure
@@ -20,7 +21,13 @@ namespace pressure
 
     void setup();
 
-    // FILL - data getters
+    void update();
+
+    uint8_t *getPressureDataSingleByte();
+    uint16_t *getPressureDataDoubleByte();
+    float *getCenterOfMass();
+    uint32_t getMass();
+    double getHeelToToe();
 } // namespace pressure
 
 #endif // _PRESSURE_

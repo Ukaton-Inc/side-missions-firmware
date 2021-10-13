@@ -1,3 +1,4 @@
+#include "definitions.h"
 #include "powerManagement.h"
 #include "motion.h"
 #include "wifiServer.h"

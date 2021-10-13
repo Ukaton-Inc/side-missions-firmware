@@ -17,15 +17,25 @@ void setup()
 
     eepromUtils::setup();
     name::setup();
+#if !IS_INSOLE
     motion::setup();
+#endif
+#if IS_INSOLE
     pressure::setup();
+#endif
     wifiServer::setup();
+#if !IS_INSOLE
     powerManagement::setup();
+#endif
 }
 
 void loop()
 {
+#if !IS_INSOLE
     motion::loop();
+#endif
     wifiServer::loop();
+#if !IS_INSOLE
     powerManagement::loop();
+#endif
 }

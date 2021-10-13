@@ -100,6 +100,85 @@ namespace wifiServer
         return motionData;
     }
 
+    uint16_t pressureConfiguration[(uint8_t)pressure::DataType::COUNT]{0};
+    std::vector<uint8_t> getPressureData()
+    {
+        bool didUpdate = false;
+
+        std::vector<uint8_t> pressureData;
+        for (uint8_t dataTypeIndex = 0; dataTypeIndex < (uint8_t)pressure::DataType::COUNT; dataTypeIndex++)
+        {
+            auto dataType = (pressure::DataType)dataTypeIndex;
+
+            if (pressureConfiguration[dataTypeIndex] != 0 && previousDataMillis % pressureConfiguration[dataTypeIndex] == 0)
+            {
+                if (!didUpdate)
+                {
+                    pressure::update();
+                    didUpdate = true;
+                }
+
+                uint8_t dataSize = 0;
+                uint8_t *data = nullptr;
+
+                switch (dataType)
+                {
+                case pressure::DataType::SINGLE_BYTE:
+                    dataSize = pressure::number_of_pressure_sensors;
+                    data = pressure::getPressureDataSingleByte();
+                    break;
+                case pressure::DataType::DOUBLE_BYTE:
+                    dataSize = pressure::number_of_pressure_sensors * 2;
+                    data = (uint8_t *)pressure::getPressureDataDoubleByte();
+                    break;
+                case pressure::DataType::CENTER_OF_MASS:
+                    dataSize = sizeof(float) * 2;
+                    data = (uint8_t *)pressure::getCenterOfMass();
+                    break;
+                case pressure::DataType::MASS:
+                {
+                    dataSize = sizeof(uint32_t);
+                    auto mass = pressure::getMass();
+                    data = (uint8_t *)&mass;
+                }
+                break;
+                case pressure::DataType::HEEL_TO_TOE:
+                {
+                    dataSize = sizeof(double);
+                    auto heelToToe = pressure::getHeelToToe();
+                    data = (uint8_t *)&heelToToe;
+                }
+                break;
+                default:
+                    Serial.print("uncaught pressure data type: ");
+                    Serial.println((uint8_t)dataType);
+                    break;
+                }
+
+                if (dataSize > 0)
+                {
+                    pressureData.push_back((uint8_t)dataType);
+                    pressureData.insert(pressureData.end(), (uint8_t *)data, ((uint8_t *)data) + dataSize);
+                }
+            }
+        }
+
+#if DEBUG
+        if (pressureData.size() > 0)
+        {
+            Serial.print("PRESSURE DATA: ");
+            for (auto iterator = pressureData.begin(); iterator != pressureData.end(); iterator++)
+            {
+                Serial.print(*iterator);
+                Serial.print(',');
+            }
+            Serial.println();
+        }
+#endif
+
+        return pressureData;
+    }
+
     bool areMacAddressesEqual(const uint8_t *a, const uint8_t *b)
     {
         bool areEqual = true;
@@ -138,6 +217,7 @@ namespace wifiServer
     {
         Peer::OnClientDisconnection();
         memset(&motionConfiguration, 0, sizeof(motionConfiguration));
+        memset(&pressureConfiguration, 0, sizeof(pressureConfiguration));
         sentClientNumberOfDevices = false;
     }
 
@@ -279,6 +359,7 @@ namespace wifiServer
 
         return dataOffset;
     }
+
     uint8_t onClientRequestGetMotionConfiguration(uint8_t *data, uint8_t dataOffset)
     {
         uint8_t deviceIndex = data[dataOffset++];
@@ -347,6 +428,91 @@ namespace wifiServer
         return dataOffset;
     }
 
+    uint8_t onClientRequestGetPressureConfiguration(uint8_t *data, uint8_t dataOffset)
+    {
+        uint8_t deviceIndex = data[dataOffset++];
+        if (deviceIndex == 0)
+        {
+            uint8_t data[1 + sizeof(pressureConfiguration)];
+            data[0] = (uint8_t)ErrorMessageType::NO_ERROR;
+            memcpy(&data[1], pressureConfiguration, sizeof(pressureConfiguration));
+            deviceClientMessageMaps[deviceIndex][MessageType::GET_PRESSURE_CONFIGURATION].assign(data, data + sizeof(data));
+        }
+        else
+        {
+            try
+            {
+                auto peer = Peer::getPeerByDeviceIndex(deviceIndex);
+                if (peer->pressure != nullptr)
+                {
+                    if (peer->pressure->didUpdateConfigurationAtLeastOnce)
+                    {
+                        uint8_t data[1 + sizeof(peer->pressure->configuration)];
+                        data[0] = (uint8_t)ErrorMessageType::NO_ERROR;
+                        memcpy(&data[1], peer->pressure->configuration, sizeof(peer->pressure->configuration));
+                        deviceClientMessageMaps[deviceIndex][MessageType::GET_PRESSURE_CONFIGURATION].assign(data, data + sizeof(data));
+                    }
+                    else
+                    {
+                        peer->messageMap[MessageType::GET_PRESSURE_CONFIGURATION];
+                    }
+                }
+            }
+            catch (const std::out_of_range &error)
+            {
+                uint8_t data[1];
+                data[0] = (uint8_t)ErrorMessageType::DEVICE_NOT_FOUND;
+                deviceClientMessageMaps[deviceIndex][MessageType::GET_PRESSURE_CONFIGURATION].assign(data, data + sizeof(data));
+            }
+        }
+
+        return dataOffset;
+    }
+    uint8_t onClientRequestSetPressureConfiguration(uint8_t *data, uint8_t dataOffset)
+    {
+        uint8_t deviceIndex = data[dataOffset++];
+        auto _pressureConfiguration = (uint16_t *)&data[dataOffset];
+        dataOffset += sizeof(pressureConfiguration);
+        if (deviceIndex == 0)
+        {
+            memcpy(pressureConfiguration, _pressureConfiguration, sizeof(pressureConfiguration));
+            if (pressureConfiguration[(uint8_t)pressure::DataType::SINGLE_BYTE] != 0 || pressureConfiguration[(uint8_t)pressure::DataType::DOUBLE_BYTE] != 0)
+            {
+                if (pressureConfiguration[(uint8_t)pressure::DataType::SINGLE_BYTE] != 0 && pressureConfiguration[(uint8_t)pressure::DataType::DOUBLE_BYTE] != 0)
+                {
+                    pressureConfiguration[(uint8_t)pressure::DataType::SINGLE_BYTE] = 0;
+                }
+                pressureConfiguration[(uint8_t)pressure::DataType::MASS] = 0;
+                pressureConfiguration[(uint8_t)pressure::DataType::CENTER_OF_MASS] = 0;
+                pressureConfiguration[(uint8_t)pressure::DataType::HEEL_TO_TOE] = 0;
+            }
+            if (pressureConfiguration[(uint8_t)pressure::DataType::CENTER_OF_MASS] != 0)
+            {
+                pressureConfiguration[(uint8_t)pressure::DataType::HEEL_TO_TOE] = 0;
+            }
+            uint8_t data[1 + sizeof(pressureConfiguration)];
+            data[0] = (uint8_t)ErrorMessageType::NO_ERROR;
+            memcpy(&data[1], pressureConfiguration, sizeof(pressureConfiguration));
+            deviceClientMessageMaps[deviceIndex][MessageType::GET_PRESSURE_CONFIGURATION].assign(data, data + sizeof(data));
+        }
+        else
+        {
+            try
+            {
+                auto peer = Peer::getPeerByDeviceIndex(deviceIndex);
+                peer->messageMap[MessageType::SET_PRESSURE_CONFIGURATION].assign((uint8_t *)_pressureConfiguration, (uint8_t *)_pressureConfiguration + sizeof(pressureConfiguration));
+            }
+            catch (const std::out_of_range &error)
+            {
+                uint8_t data[1];
+                data[0] = (uint8_t)ErrorMessageType::DEVICE_NOT_FOUND;
+                deviceClientMessageMaps[deviceIndex][MessageType::SET_PRESSURE_CONFIGURATION].assign(data, data + sizeof(data));
+            }
+        }
+
+        return dataOffset;
+    }
+
     void onWebSocketMessage(AsyncWebSocketClient *client, void *arg, uint8_t *data, size_t len)
     {
         auto info = (AwsFrameInfo *)arg;
@@ -391,6 +557,12 @@ namespace wifiServer
                     break;
                 case MessageType::SET_MOTION_CONFIGURATION:
                     dataOffset = onClientRequestSetMotionConfiguration(data, dataOffset);
+                    break;
+                case MessageType::GET_PRESSURE_CONFIGURATION:
+                    dataOffset = onClientRequestGetPressureConfiguration(data, dataOffset);
+                    break;
+                case MessageType::SET_PRESSURE_CONFIGURATION:
+                    dataOffset = onClientRequestSetPressureConfiguration(data, dataOffset);
                     break;
                 default:
                     Serial.print("uncaught websocket message type: ");
@@ -644,6 +816,7 @@ namespace wifiServer
 
     void motionDataLoop()
     {
+#if !IS_INSOLE
         auto motionData = getMotionData();
         if (motionData.size() > 0)
         {
@@ -653,13 +826,26 @@ namespace wifiServer
             shouldSendToClient = true;
             includeTimestampInClientMessage = true;
         }
+#endif
 
         Peer::MotionDataLoop();
     }
 
     void pressureDataLoop()
     {
-        // fiLL
+#if IS_INSOLE
+        auto pressureData = getPressureData();
+        if (pressureData.size() > 0)
+        {
+            deviceClientMessageMaps[0][MessageType::PRESSURE_DATA].push_back(pressureData.size());
+            deviceClientMessageMaps[0][MessageType::PRESSURE_DATA].insert(deviceClientMessageMaps[0][MessageType::PRESSURE_DATA].end(), pressureData.begin(), pressureData.end());
+
+            shouldSendToClient = true;
+            includeTimestampInClientMessage = true;
+        }
+#endif
+
+        Peer::PressureDataLoop();
     }
 
     void dataLoop()
@@ -686,7 +872,9 @@ namespace wifiServer
         if (sentClientNumberOfDevices)
         {
             batteryLevelLoop();
+#if !IS_INSOLE
             motionCalibrationLoop();
+#endif
             dataLoop();
         }
         Peer::pingLoop();
@@ -786,6 +974,40 @@ namespace wifiServer
         receiverMessageMap[MessageType::SET_MOTION_CONFIGURATION].assign(data, data + sizeof(data));
         return incomingDataOffset;
     }
+    uint8_t onReceiverRequestGetPressureConfiguration(const uint8_t *incomingData, uint8_t incomingDataOffset)
+    {
+        uint8_t data[1 + sizeof(pressureConfiguration)];
+        data[0] = (uint8_t)ErrorMessageType::NO_ERROR;
+        memcpy(&data[1], pressureConfiguration, sizeof(pressureConfiguration));
+        receiverMessageMap[MessageType::GET_PRESSURE_CONFIGURATION].assign(data, data + sizeof(data));
+        return incomingDataOffset;
+    }
+    uint8_t onReceiverRequestSetPressureConfiguration(const uint8_t *incomingData, uint8_t incomingDataOffset)
+    {
+        auto _pressureConfiguration = (uint16_t *)&incomingData[incomingDataOffset];
+        incomingDataOffset += sizeof(pressureConfiguration);
+        memcpy(pressureConfiguration, _pressureConfiguration, sizeof(pressureConfiguration));
+        if (pressureConfiguration[(uint8_t)pressure::DataType::SINGLE_BYTE] != 0 || pressureConfiguration[(uint8_t)pressure::DataType::DOUBLE_BYTE] != 0)
+        {
+            if (pressureConfiguration[(uint8_t)pressure::DataType::SINGLE_BYTE] != 0 && pressureConfiguration[(uint8_t)pressure::DataType::DOUBLE_BYTE] != 0)
+            {
+                pressureConfiguration[(uint8_t)pressure::DataType::SINGLE_BYTE] = 0;
+            }
+            pressureConfiguration[(uint8_t)pressure::DataType::MASS] = 0;
+            pressureConfiguration[(uint8_t)pressure::DataType::CENTER_OF_MASS] = 0;
+            pressureConfiguration[(uint8_t)pressure::DataType::HEEL_TO_TOE] = 0;
+        }
+        if (pressureConfiguration[(uint8_t)pressure::DataType::CENTER_OF_MASS] != 0)
+        {
+            pressureConfiguration[(uint8_t)pressure::DataType::HEEL_TO_TOE] = 0;
+        }
+
+        uint8_t data[1 + sizeof(pressureConfiguration)];
+        data[0] = (uint8_t)ErrorMessageType::NO_ERROR;
+        memcpy(&data[1], pressureConfiguration, sizeof(pressureConfiguration));
+        receiverMessageMap[MessageType::SET_PRESSURE_CONFIGURATION].assign(data, data + sizeof(data));
+        return incomingDataOffset;
+    }
     uint8_t onReceiverRequestSetDelay(const uint8_t *incomingData, uint8_t incomingDataOffset)
     {
         delayMillis = incomingData[incomingDataOffset++];
@@ -844,6 +1066,12 @@ namespace wifiServer
                 case MessageType::SET_MOTION_CONFIGURATION:
                     incomingDataOffset = onReceiverRequestSetMotionConfiguration(incomingData, incomingDataOffset);
                     break;
+                case MessageType::GET_PRESSURE_CONFIGURATION:
+                    incomingDataOffset = onReceiverRequestGetPressureConfiguration(incomingData, incomingDataOffset);
+                    break;
+                case MessageType::SET_PRESSURE_CONFIGURATION:
+                    incomingDataOffset = onReceiverRequestSetPressureConfiguration(incomingData, incomingDataOffset);
+                    break;
                 case MessageType::PING:
                     break;
                 case MessageType::CLIENT_CONNECTED:
@@ -854,6 +1082,7 @@ namespace wifiServer
                     Serial.println("disconnected from client");
                     _isConnectedToClient = false;
                     memset(&motionConfiguration, 0, sizeof(motionConfiguration));
+                    memset(&pressureConfiguration, 0, sizeof(pressureConfiguration));
                     break;
                 case MessageType::TIMESTAMP_DELAY:
                     incomingDataOffset = onReceiverRequestSetDelay(incomingData, incomingDataOffset);
@@ -970,7 +1199,15 @@ namespace wifiServer
 
     void pressureDataLoop()
     {
-        // fiLL
+        auto pressureData = getPressureData();
+        if (pressureData.size() > 0)
+        {
+            receiverMessageMap[MessageType::PRESSURE_DATA].push_back(pressureData.size());
+            receiverMessageMap[MessageType::PRESSURE_DATA].insert(receiverMessageMap[MessageType::PRESSURE_DATA].end(), pressureData.begin(), pressureData.end());
+
+            includeTimestampInClientMessage = true;
+            shouldSendToReceiver = true;
+        }
     }
 
     void dataLoop()
@@ -979,8 +1216,13 @@ namespace wifiServer
         {
             previousDataMillis = currentMillis - (currentMillis % dataInterval);
 
+#if !IS_INSOLE
             motionDataLoop();
+#endif
+
+#if IS_INSOLE
             pressureDataLoop();
+#endif
 
             if (includeTimestampInClientMessage)
             {
@@ -1049,13 +1291,15 @@ namespace wifiServer
 
     void loop()
     {
-        currentMillis = millis() - (delayMillis + (dataInterval/2));
+        currentMillis = millis() - (delayMillis + (dataInterval / 2));
         if (isConnectedToClient())
         {
             lastTimeConnected = currentMillis;
         }
         batteryLevelLoop();
+#if !IS_INSOLE
         motionCalibrationLoop();
+#endif
         dataLoop();
         pingLoop();
         sendLoop();
