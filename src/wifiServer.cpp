@@ -138,15 +138,35 @@ namespace wifiServer
                 case pressure::DataType::MASS:
                 {
                     dataSize = sizeof(uint32_t);
-                    auto mass = pressure::getMass();
-                    data = (uint8_t *)&mass;
+                    data = (uint8_t *)pressure::getMass();
+#if DEBUG
+                    Serial.print("PACKING MASS ");
+                    Serial.print(mass);
+                    Serial.print(": ");
+                    for (auto i = 0; i < dataSize; i++)
+                    {
+                        Serial.print(data[i]);
+                        Serial.print(", ");
+                    }
+                    Serial.println();
+#endif
                 }
                 break;
                 case pressure::DataType::HEEL_TO_TOE:
                 {
                     dataSize = sizeof(double);
-                    auto heelToToe = pressure::getHeelToToe();
-                    data = (uint8_t *)&heelToToe;
+                    data = (uint8_t *)pressure::getHeelToToe();
+#if DEBUG
+                    Serial.print("PACKING HEEL To tOE ");
+                    Serial.print(heelToToe);
+                    Serial.print(": ");
+                    for (auto i = 0; i < dataSize; i++)
+                    {
+                        Serial.print(data[i]);
+                        Serial.print(", ");
+                    }
+                    Serial.println();
+#endif
                 }
                 break;
                 default:

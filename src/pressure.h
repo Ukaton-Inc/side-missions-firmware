@@ -26,8 +26,8 @@ namespace pressure
     uint8_t *getPressureDataSingleByte();
     uint16_t *getPressureDataDoubleByte();
     float *getCenterOfMass();
-    uint32_t getMass();
-    double getHeelToToe();
+    uint32_t *const getMass();
+    double *const getHeelToToe();
 } // namespace pressure
 
 #endif // _PRESSURE_

@@ -2,7 +2,7 @@
 #ifndef _DEFINITIONS_
 #define _DEFINITIONS_
 
-#define DEBUG true
+#define DEBUG false
 
 #define CPU_FREQUENCY_MHZ 80
 

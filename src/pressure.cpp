@@ -165,7 +165,7 @@ namespace pressure
             centerOfMass[0] = 0;
             centerOfMass[1] = 0;
 
-            auto mass = getMass();
+            auto mass = (*getMass());
 
             if (mass > 0)
             {
@@ -181,7 +181,7 @@ namespace pressure
         return centerOfMass;
     }
 
-    uint32_t getMass()
+    uint32_t * const getMass()
     {
         if (!didUpdate[DataType::MASS])
         {
@@ -191,17 +191,21 @@ namespace pressure
                 mass += pressureDataDoubleByte[index];
             }
             didUpdate[DataType::MASS] = true;
+#if DEBUG
+            Serial.print("MASS: ");
+            Serial.println(mass);
+#endif
         }
-        return mass;
+        return &mass;
     }
 
-    double getHeelToToe()
+    double* const getHeelToToe()
     {
         if (!didUpdate[DataType::HEEL_TO_TOE])
         {
             heelToToe = 0;
 
-            auto mass = getMass();
+            auto mass = (*getMass());
             if (mass > 0)
             {
                 for (uint8_t index = 0; index < number_of_pressure_sensors; index++)
@@ -211,8 +215,13 @@ namespace pressure
             }
 
             didUpdate[DataType::HEEL_TO_TOE] = true;
+
+#if DEBUG
+            Serial.print("Heel to toe: ");
+            Serial.println(heelToToe);
+#endif
         }
-        return heelToToe;
+        return &heelToToe;
     }
 
 } // namespace pressure

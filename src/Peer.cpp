@@ -530,7 +530,7 @@ void Peer::Pressure::updateData(const uint8_t *_data, size_t length)
 
         if (dataSize > 0)
         {
-            data[dataType].assign((int16_t *)&_data[dataOffset], (int16_t *)(&_data[dataOffset] + dataSize));
+            data[dataType].assign((uint8_t *)&_data[dataOffset], (uint8_t *)(&_data[dataOffset] + dataSize));
             didSendData[dataType] = false;
             dataOffset += dataSize;
 
@@ -561,11 +561,7 @@ std::vector<uint8_t> Peer::Pressure::getData()
             if (didSendData.count(dataType) == 1 && !didSendData[dataType] && data.count(dataType) == 1)
             {
                 pressureData.push_back((uint8_t)dataType);
-                for (auto iterator = data[dataType].begin(); iterator != data[dataType].end(); iterator++)
-                {
-                    pressureData.push_back(lowByte(*iterator));
-                    pressureData.push_back(highByte(*iterator));
-                }
+                pressureData.insert(pressureData.end(), data[dataType].begin(), data[dataType].end());
             }
         }
     }
