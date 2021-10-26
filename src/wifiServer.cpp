@@ -140,9 +140,7 @@ namespace wifiServer
                     dataSize = sizeof(uint32_t);
                     data = (uint8_t *)pressure::getMass();
 #if DEBUG
-                    Serial.print("PACKING MASS ");
-                    Serial.print(mass);
-                    Serial.print(": ");
+                    Serial.print("PACKING MASS: ");
                     for (auto i = 0; i < dataSize; i++)
                     {
                         Serial.print(data[i]);
@@ -157,9 +155,7 @@ namespace wifiServer
                     dataSize = sizeof(double);
                     data = (uint8_t *)pressure::getHeelToToe();
 #if DEBUG
-                    Serial.print("PACKING HEEL To tOE ");
-                    Serial.print(heelToToe);
-                    Serial.print(": ");
+                    Serial.print("PACKING HEEL To tOE: ");
                     for (auto i = 0; i < dataSize; i++)
                     {
                         Serial.print(data[i]);
@@ -215,9 +211,10 @@ namespace wifiServer
 
     AsyncWebSocket webSocket("/ws");
 
+    AsyncWebSocketClient *client = nullptr;
     bool isConnectedToClient()
     {
-        return webSocket.count() > 0;
+        return webSocket.count() > 0 && client != nullptr;
     }
 
     uint8_t getNumberOfDevices()
@@ -231,13 +228,18 @@ namespace wifiServer
 
     void onClientConnection()
     {
+        Serial.println("Connected to client");
         Peer::OnClientConnection();
     }
     void onClientDisconnection()
     {
+        Serial.println("Disconnected from client");
         Peer::OnClientDisconnection();
         memset(&motionConfiguration, 0, sizeof(motionConfiguration));
         memset(&pressureConfiguration, 0, sizeof(pressureConfiguration));
+        clientMessageMap.clear();
+        deviceClientMessageMaps.clear();
+
         sentClientNumberOfDevices = false;
     }
 
@@ -533,86 +535,92 @@ namespace wifiServer
         return dataOffset;
     }
 
-    void onWebSocketMessage(AsyncWebSocketClient *client, void *arg, uint8_t *data, size_t len)
+    void onWebSocketMessage(AsyncWebSocketClient *_client, void *arg, uint8_t *data, size_t len)
     {
-        auto info = (AwsFrameInfo *)arg;
-        if (info->final && info->index == 0 && info->len == len)
+        if (client == _client)
         {
-#if DEBUG
-            Serial.print("WebSocket: ");
-            for (uint8_t index = 0; index < len; index++)
+            auto info = (AwsFrameInfo *)arg;
+            if (info->final && info->index == 0 && info->len == len)
             {
-                Serial.print(data[index]);
-                Serial.print(',');
-            }
-            Serial.println();
-#endif
-
-            uint8_t dataOffset = 0;
-            MessageType messageType;
-            while (dataOffset < len)
-            {
-                messageType = (MessageType)data[dataOffset++];
 #if DEBUG
-                Serial.print("Message Type from client: ");
-                Serial.println((uint8_t)messageType);
-#endif
-
-                switch (messageType)
+                Serial.print("WebSocket: ");
+                for (uint8_t index = 0; index < len; index++)
                 {
-                case MessageType::GET_NUMBER_OF_DEVICES:
-                    onClientRequestNumberOfDevices();
-                    break;
-                case MessageType::GET_NAME:
-                    dataOffset = onClientRequestGetName(data, dataOffset);
-                    break;
-                case MessageType::SET_NAME:
-                    dataOffset = onClientRequestSetName(data, dataOffset);
-                    break;
-                case MessageType::GET_TYPE:
-                    dataOffset = onClientRequestGetType(data, dataOffset);
-                    break;
-                case MessageType::GET_MOTION_CONFIGURATION:
-                    dataOffset = onClientRequestGetMotionConfiguration(data, dataOffset);
-                    break;
-                case MessageType::SET_MOTION_CONFIGURATION:
-                    dataOffset = onClientRequestSetMotionConfiguration(data, dataOffset);
-                    break;
-                case MessageType::GET_PRESSURE_CONFIGURATION:
-                    dataOffset = onClientRequestGetPressureConfiguration(data, dataOffset);
-                    break;
-                case MessageType::SET_PRESSURE_CONFIGURATION:
-                    dataOffset = onClientRequestSetPressureConfiguration(data, dataOffset);
-                    break;
-                default:
-                    Serial.print("uncaught websocket message type: ");
-                    Serial.println((uint8_t)messageType);
-                    dataOffset = len;
-                    break;
+                    Serial.print(data[index]);
+                    Serial.print(',');
                 }
-            }
+                Serial.println();
+#endif
 
-            shouldSendToClient = shouldSendToClient || (clientMessageMap.size() > 0) || (deviceClientMessageMaps.size() > 0);
+                uint8_t dataOffset = 0;
+                MessageType messageType;
+                while (dataOffset < len)
+                {
+                    messageType = (MessageType)data[dataOffset++];
+#if DEBUG
+                    Serial.print("Message Type from client: ");
+                    Serial.println((uint8_t)messageType);
+#endif
+
+                    switch (messageType)
+                    {
+                    case MessageType::GET_NUMBER_OF_DEVICES:
+                        onClientRequestNumberOfDevices();
+                        break;
+                    case MessageType::GET_NAME:
+                        dataOffset = onClientRequestGetName(data, dataOffset);
+                        break;
+                    case MessageType::SET_NAME:
+                        dataOffset = onClientRequestSetName(data, dataOffset);
+                        break;
+                    case MessageType::GET_TYPE:
+                        dataOffset = onClientRequestGetType(data, dataOffset);
+                        break;
+                    case MessageType::GET_MOTION_CONFIGURATION:
+                        dataOffset = onClientRequestGetMotionConfiguration(data, dataOffset);
+                        break;
+                    case MessageType::SET_MOTION_CONFIGURATION:
+                        dataOffset = onClientRequestSetMotionConfiguration(data, dataOffset);
+                        break;
+                    case MessageType::GET_PRESSURE_CONFIGURATION:
+                        dataOffset = onClientRequestGetPressureConfiguration(data, dataOffset);
+                        break;
+                    case MessageType::SET_PRESSURE_CONFIGURATION:
+                        dataOffset = onClientRequestSetPressureConfiguration(data, dataOffset);
+                        break;
+                    default:
+                        Serial.print("uncaught websocket message type: ");
+                        Serial.println((uint8_t)messageType);
+                        dataOffset = len;
+                        break;
+                    }
+                }
+
+                shouldSendToClient = shouldSendToClient || (clientMessageMap.size() > 0) || (deviceClientMessageMaps.size() > 0);
+            }
         }
     }
 
-    void onWebSocketEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len)
+    void onWebSocketEvent(AsyncWebSocket *server, AsyncWebSocketClient *_client, AwsEventType type, void *arg, uint8_t *data, size_t len)
     {
         switch (type)
         {
         case WS_EVT_CONNECT:
-            Serial.printf("WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
+            Serial.printf("WebSocket client #%u connected from %s\n", _client->id(), _client->remoteIP().toString().c_str());
             Serial.printf("There are currently %u clients\n", webSocket.count());
-            if (webSocket.count() == 1)
+            if (client == nullptr)
             {
+                client = _client;
                 onClientConnection();
             }
             break;
         case WS_EVT_DISCONNECT:
-            Serial.printf("WebSocket client #%u disconnected\n", client->id());
+            Serial.printf("WebSocket client #%u disconnected\n", _client->id());
             Serial.printf("There are currently %u clients\n", webSocket.count());
-            if (webSocket.count() == 0)
+
+            if (client == _client)
             {
+                client = nullptr;
                 onClientDisconnection();
             }
             break;
@@ -724,12 +732,6 @@ namespace wifiServer
         {
             peer->connect();
         }
-        else
-        {
-#if DEBUG
-            Serial.println("already connected to peer");
-#endif
-        }
 
         peer->onMessage(incomingData, len);
     }
@@ -738,20 +740,17 @@ namespace wifiServer
         auto peer = Peer::getPeerByMacAddress(macAddress);
         if (peer != nullptr)
         {
-#if DEBUG
-            Serial.print("\r\nLast Packet Send Status:\t");
-#endif
             if (status == ESP_NOW_SEND_SUCCESS)
             {
 #if DEBUG
-                Serial.println("Delivery Success");
+                Serial.println("[onEspNowDataSent] Delivery Success");
 #endif
                 peer->updateAvailability(true);
             }
             else
             {
 #if DEBUG
-                Serial.print("Delivery Failed: ");
+                Serial.print("[onEspNowDataSent] Delivery Failed: ");
                 Serial.println(status);
 #endif
 
@@ -840,6 +839,7 @@ namespace wifiServer
         auto motionData = getMotionData();
         if (motionData.size() > 0)
         {
+            deviceClientMessageMaps[0][MessageType::MOTION_DATA].clear();
             deviceClientMessageMaps[0][MessageType::MOTION_DATA].push_back(motionData.size());
             deviceClientMessageMaps[0][MessageType::MOTION_DATA].insert(deviceClientMessageMaps[0][MessageType::MOTION_DATA].end(), motionData.begin(), motionData.end());
 
@@ -857,6 +857,7 @@ namespace wifiServer
         auto pressureData = getPressureData();
         if (pressureData.size() > 0)
         {
+            deviceClientMessageMaps[0][MessageType::PRESSURE_DATA].clear();
             deviceClientMessageMaps[0][MessageType::PRESSURE_DATA].push_back(pressureData.size());
             deviceClientMessageMaps[0][MessageType::PRESSURE_DATA].insert(deviceClientMessageMaps[0][MessageType::PRESSURE_DATA].end(), pressureData.begin(), pressureData.end());
 
@@ -889,17 +890,18 @@ namespace wifiServer
     {
         currentMillis = millis();
 
-        if (sentClientNumberOfDevices)
+        if (sentClientNumberOfDevices && client != nullptr && client->canSend())
         {
             batteryLevelLoop();
 #if !IS_INSOLE
             motionCalibrationLoop();
 #endif
             dataLoop();
+
+            webSocketLoop();
         }
         Peer::pingLoop();
         Peer::sendAll();
-        webSocketLoop();
     }
 
 #else
@@ -1120,29 +1122,24 @@ namespace wifiServer
     }
     void onEspNowDataSent(const uint8_t *macAddress, esp_now_send_status_t status)
     {
-#if DEBUG
-        Serial.print("\r\nLast Packet Send Status:\t");
-#endif
-
         bool _isConnectedToReceiver;
         if (status == ESP_NOW_SEND_SUCCESS)
         {
 #if DEBUG
-            Serial.println("Delivery Success");
+            Serial.println("[onEspNowDataSent] Delivery Success");
 #endif
             _isConnectedToReceiver = true;
         }
         else
         {
-            Serial.print("Delivery Failed: ");
-            Serial.println(status);
+            Serial.println("[onEspNowDataSent] Delivery Failed");
             _isConnectedToReceiver = false;
         }
 
         if (isConnectedToReceiver != _isConnectedToReceiver)
         {
-            Serial.println(isConnectedToReceiver ? "Connected to receiver" : "Disconneted from receiver");
             isConnectedToReceiver = _isConnectedToReceiver;
+            Serial.println(isConnectedToReceiver ? "Connected to receiver" : "Disconneted from receiver");
         }
     }
 
@@ -1177,8 +1174,6 @@ namespace wifiServer
             Serial.println("Failed to connect to receiver");
             delay(2000);
         }
-        Serial.println("added receiver");
-        isConnectedToReceiver = true;
     }
 
     void batteryLevelLoop()
@@ -1209,6 +1204,7 @@ namespace wifiServer
         auto motionData = getMotionData();
         if (motionData.size() > 0)
         {
+            receiverMessageMap.erase(MessageType::MOTION_DATA);
             receiverMessageMap[MessageType::MOTION_DATA].push_back(motionData.size());
             receiverMessageMap[MessageType::MOTION_DATA].insert(receiverMessageMap[MessageType::MOTION_DATA].end(), motionData.begin(), motionData.end());
 
@@ -1222,6 +1218,7 @@ namespace wifiServer
         auto pressureData = getPressureData();
         if (pressureData.size() > 0)
         {
+            receiverMessageMap.erase(MessageType::PRESSURE_DATA);
             receiverMessageMap[MessageType::PRESSURE_DATA].push_back(pressureData.size());
             receiverMessageMap[MessageType::PRESSURE_DATA].insert(receiverMessageMap[MessageType::PRESSURE_DATA].end(), pressureData.begin(), pressureData.end());
 
@@ -1256,14 +1253,14 @@ namespace wifiServer
     }
 
     unsigned long previousPingMillis = 0;
-    const uint16_t pingInterval = 2000;
+    const uint16_t pingInterval = 1000;
     void pingLoop()
     {
         if (currentMillis - previousPingMillis >= pingInterval)
         {
             previousPingMillis = currentMillis - (currentMillis % pingInterval);
-            if (!shouldSendToReceiver)
-            {
+
+            if (!shouldSendToReceiver) {
                 receiverMessageMap[MessageType::PING];
                 shouldSendToReceiver = true;
             }
@@ -1295,12 +1292,12 @@ namespace wifiServer
             if (result == ESP_OK)
             {
 #if DEBUG
-                Serial.println("Delivery Success");
+                Serial.println("[esp_now_send] Delivery Success");
 #endif
             }
             else
             {
-                Serial.print("Delivery Failed: ");
+                Serial.print("[esp_now_send] Delivery Failed: ");
                 Serial.println(esp_err_to_name(result));
             }
 
@@ -1316,11 +1313,16 @@ namespace wifiServer
         {
             lastTimeConnected = currentMillis;
         }
-        batteryLevelLoop();
+
+        if (isConnectedToReceiver)
+        {
+            batteryLevelLoop();
 #if !IS_INSOLE
-        motionCalibrationLoop();
+            motionCalibrationLoop();
 #endif
-        dataLoop();
+            dataLoop();
+        }
+
         pingLoop();
         sendLoop();
     }

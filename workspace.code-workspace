@@ -51,7 +51,10 @@
 			"complex": "cpp",
 			"ratio": "cpp",
 			"string_view": "cpp",
-			"mutex": "cpp"
+			"mutex": "cpp",
+			"bitset": "cpp",
+			"list": "cpp",
+			"regex": "cpp"
 		}
 	}
 }

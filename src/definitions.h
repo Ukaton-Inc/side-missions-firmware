@@ -8,7 +8,7 @@
 
 #define MAC_ADDRESS_SIZE 6
 
-#define IS_RECEIVER true
+#define IS_RECEIVER false
 
 #define NAME "Ukaton Motion Module"
 

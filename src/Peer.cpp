@@ -85,6 +85,10 @@ void Peer::onClientDisconnection()
     messageMap.erase(MessageType::CLIENT_CONNECTED);
     shouldSend = true;
     memset(&motion.configuration, 0, sizeof(motion.configuration));
+    if (pressure != nullptr)
+    {
+        memset(&pressure->configuration, 0, sizeof(pressure->configuration));
+    }
 }
 void Peer::OnClientDisconnection()
 {
@@ -159,28 +163,35 @@ void Peer::updateAvailability(bool _isAvailable)
         uint8_t data[1];
         data[0] = _isAvailable ? 1 : 0;
         deviceClientMessageMaps[deviceIndex][MessageType::AVAILABILITY].assign(data, data + sizeof(data));
+
+#if DEBUG
+        Serial.print("updated availability: ");
+        Serial.println(isAvailable);
+#endif
     }
 
     isAvailable = _isAvailable;
 
     if (!isAvailable)
     {
+        messageMap.clear();
+
         didUpdateDelayAtLeastOnce = false;
         didUpdateNameAtLeastOnce = false;
         didUpdateDeviceTypeAtLeastOnce = false;
         didUpdateBatteryLevelAtLeastOnce = false;
+
         motion.didUpdateCalibrationAtLeastOnce = false;
         motion.didUpdateConfigurationAtLeastOnce = false;
+        motion.didSendData.clear();
+        motion.data.clear();
         if (pressure != nullptr)
         {
             pressure->didUpdateConfigurationAtLeastOnce = false;
+            pressure->didSendData.clear();
+            pressure->data.clear();
         }
     }
-
-#if DEBUG
-    Serial.print("updated availability: ");
-    Serial.println(isAvailable);
-#endif
 }
 
 void Peer::updateDelay()
@@ -610,13 +621,13 @@ void Peer::send()
         if (sendError == ESP_OK)
         {
 #if DEBUG
-            Serial.println("Delivery Success");
+            Serial.println("[esp_now_send] Delivery Success");
 #endif
         }
         else
         {
 #if DEBUG
-            Serial.print("Delivery Failed: ");
+            Serial.print("[esp_now_send] Delivery Failed: ");
             Serial.println(esp_err_to_name(sendError));
 #endif
         }
@@ -747,7 +758,7 @@ void Peer::onMessage(const uint8_t *incomingData, int len)
     Serial.println();
 #endif
 
-    updateDelay();
+    //updateDelay();
 
     uint8_t incomingDataOffset = 0;
     MessageType messageType;
@@ -848,6 +859,7 @@ void Peer::motionDataLoop()
         auto motionData = motion.getData();
         if (motionData.size() > 0)
         {
+            deviceClientMessageMaps[deviceIndex][MessageType::MOTION_DATA].clear();
             deviceClientMessageMaps[deviceIndex][MessageType::MOTION_DATA].push_back(motionData.size());
             deviceClientMessageMaps[deviceIndex][MessageType::MOTION_DATA].insert(deviceClientMessageMaps[deviceIndex][MessageType::MOTION_DATA].end(), motionData.begin(), motionData.end());
 
@@ -873,6 +885,7 @@ void Peer::pressureDataLoop()
         auto pressureData = pressure->getData();
         if (pressureData.size() > 0)
         {
+            deviceClientMessageMaps[deviceIndex][MessageType::PRESSURE_DATA].clear();
             deviceClientMessageMaps[deviceIndex][MessageType::PRESSURE_DATA].push_back(pressureData.size());
             deviceClientMessageMaps[deviceIndex][MessageType::PRESSURE_DATA].insert(deviceClientMessageMaps[deviceIndex][MessageType::PRESSURE_DATA].end(), pressureData.begin(), pressureData.end());
 
