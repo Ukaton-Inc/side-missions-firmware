@@ -1,3 +1,4 @@
+#include "definitions.h"
 #include "motion.h"
 #include "eepromUtils.h"
 #include <lwipopts.h>
@@ -10,12 +11,15 @@ namespace motion
     bool didInterrupt = false;
     void interruptCallback()
     {
+#if DEBUG
+        Serial.println("detected movement");
+#endif
         didInterrupt = true;
         lastTimeMoved = millis();
     }
 
     adafruit_bno055_offsets_t sensorOffsets;
-    uint8_t calibration[(uint8_t) CalibrationType::COUNT];
+    uint8_t calibration[(uint8_t)CalibrationType::COUNT];
     bool wroteFullCalibration = false;
     void updateCalibration()
     {
@@ -52,13 +56,17 @@ namespace motion
         }
     }
 
-    void setup() {
+    void setup()
+    {
+#if DEBUG
+        Serial.println("motion setup...");
+#endif
         if (!bno.begin())
         {
             Serial.println("No BNO055 detected");
         }
         delay(1000);
-        
+
         eepromAddress = eepromUtils::reserveSpace(sizeof(adafruit_bno055_offsets_t));
         if (eepromUtils::firstInitialized)
         {
@@ -74,13 +82,18 @@ namespace motion
         bno.enableAnyMotion(100, 5);
         bno.enableInterruptsOnXYZ(ENABLE, ENABLE, ENABLE);
         bno.setExtCrystalUse(false);
-        bno.enterNormalMode(); // it should enter low power mode but we didn't setup an external crystal oscillator so it doesn't work when esp is asleep
+#if ENABLE_POWER_MANAGEMENT
+        bno.enterLowPowerMode();
+#else
+        bno.enterNormalMode();
+#endif
     }
 
     unsigned long currentTime;
-    void loop() {
+    void loop()
+    {
         currentTime = millis();
-        
+
         if (didInterrupt)
         {
             didInterrupt = false;

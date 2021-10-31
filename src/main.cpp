@@ -15,27 +15,27 @@ void setup()
     Serial.begin(115200);
     setCpuFrequencyMhz(CPU_FREQUENCY_MHZ);
 
+#if DEBUG
+    Serial.println("setup");
+#endif
+
     eepromUtils::setup();
     name::setup();
-#if !IS_INSOLE
     motion::setup();
-#endif
 #if IS_INSOLE
     pressure::setup();
 #endif
     wifiServer::setup();
-#if !IS_INSOLE
+#if ENABLE_POWER_MANAGEMENT
     powerManagement::setup();
 #endif
 }
 
 void loop()
 {
-#if !IS_INSOLE
     motion::loop();
-#endif
     wifiServer::loop();
-#if !IS_INSOLE
+#if ENABLE_POWER_MANAGEMENT
     powerManagement::loop();
 #endif
 }

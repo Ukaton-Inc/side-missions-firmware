@@ -40,7 +40,6 @@ namespace powerManagement
     void setup()
     {
         print_wakeup_reason();
-        setCpuFrequencyMhz(80);
     }
 
     unsigned long currentTime;

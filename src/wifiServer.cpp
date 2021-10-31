@@ -205,7 +205,7 @@ namespace wifiServer
         return areEqual;
     }
 
-#if IS_RECEIVER
+#if !USE_ESP_NOW || IS_RECEIVER
 
     AsyncWebServer server(80);
 
@@ -746,6 +746,7 @@ namespace wifiServer
                 Serial.println("[onEspNowDataSent] Delivery Success");
 #endif
                 peer->updateAvailability(true);
+                peer->lastTimeSentMessage = millis();
             }
             else
             {
@@ -773,7 +774,11 @@ namespace wifiServer
 
     void setup()
     {
+#if USE_ESP_NOW
         WiFi.mode(WIFI_AP_STA);
+#else
+        WiFi.mode(WIFI_STA);
+#endif
 
         WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
         while (WiFi.status() != WL_CONNECTED)
@@ -788,14 +793,15 @@ namespace wifiServer
         Serial.print("ESP Board MAC Address:  ");
         Serial.println(WiFi.macAddress());
 
+#if USE_ESP_NOW
         if (esp_now_init() != ESP_OK)
         {
             Serial.println("Error initializing ESP-NOW");
             return;
         }
-
         esp_now_register_recv_cb(onEspNowDataReceived);
         esp_now_register_send_cb(onEspNowDataSent);
+#endif
 
         webSocket.onEvent(onWebSocketEvent);
         server.addHandler(&webSocket);
@@ -835,7 +841,6 @@ namespace wifiServer
 
     void motionDataLoop()
     {
-#if !IS_INSOLE
         auto motionData = getMotionData();
         if (motionData.size() > 0)
         {
@@ -846,7 +851,6 @@ namespace wifiServer
             shouldSendToClient = true;
             includeTimestampInClientMessage = true;
         }
-#endif
 
         Peer::MotionDataLoop();
     }
@@ -892,10 +896,10 @@ namespace wifiServer
 
         if (sentClientNumberOfDevices && client != nullptr && client->canSend())
         {
+#if ENABLE_BATTERY_LEVEL
             batteryLevelLoop();
-#if !IS_INSOLE
-            motionCalibrationLoop();
 #endif
+            motionCalibrationLoop();
             dataLoop();
 
             webSocketLoop();
@@ -918,6 +922,8 @@ namespace wifiServer
 
     std::map<MessageType, std::vector<uint8_t>> receiverMessageMap;
     bool shouldSendToReceiver = false;
+    unsigned long lastTimeReceivedMessageFromReceiver = 0;
+    unsigned long lastTimeSentMessageToReceiver = 0;
 
     int32_t getWiFiChannel(const char *ssid)
     {
@@ -1050,6 +1056,8 @@ namespace wifiServer
 
         if (areMacAddressesEqual(macAddress, receiverMacAddress))
         {
+            lastTimeReceivedMessageFromReceiver = millis();
+
 #if DEBUG
             Serial.print("EspNowReceiver: ");
             for (uint8_t index = 0; index < len; index++)
@@ -1129,6 +1137,7 @@ namespace wifiServer
             Serial.println("[onEspNowDataSent] Delivery Success");
 #endif
             _isConnectedToReceiver = true;
+            lastTimeSentMessageToReceiver = millis();
         }
         else
         {
@@ -1233,9 +1242,7 @@ namespace wifiServer
         {
             previousDataMillis = currentMillis - (currentMillis % dataInterval);
 
-#if !IS_INSOLE
             motionDataLoop();
-#endif
 
 #if IS_INSOLE
             pressureDataLoop();
@@ -1260,7 +1267,8 @@ namespace wifiServer
         {
             previousPingMillis = currentMillis - (currentMillis % pingInterval);
 
-            if (!shouldSendToReceiver) {
+            if (!shouldSendToReceiver && (currentMillis - lastTimeSentMessageToReceiver >= pingInterval) && (currentMillis - lastTimeReceivedMessageFromReceiver >= pingInterval))
+            {
                 receiverMessageMap[MessageType::PING];
                 shouldSendToReceiver = true;
             }
@@ -1316,10 +1324,10 @@ namespace wifiServer
 
         if (isConnectedToReceiver)
         {
+#if ENABLE_BATTERY_LEVEL
             batteryLevelLoop();
-#if !IS_INSOLE
-            motionCalibrationLoop();
 #endif
+            motionCalibrationLoop();
             dataLoop();
         }
 

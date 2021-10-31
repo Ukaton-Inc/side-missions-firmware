@@ -21,6 +21,9 @@ Peer::Peer(const uint8_t *macAddress)
     Serial.println(index);
 
     setMacAddress(macAddress);
+
+    lastTimeSentMessage = 0;
+    lastTimeReceivedMessage = 0;
 };
 Peer::~Peer()
 {
@@ -166,7 +169,7 @@ void Peer::updateAvailability(bool _isAvailable)
 
 #if DEBUG
         Serial.print("updated availability: ");
-        Serial.println(isAvailable);
+        Serial.println(_isAvailable);
 #endif
     }
 
@@ -650,7 +653,7 @@ void Peer::sendAll()
 
 void Peer::ping()
 {
-    if (messageMap.size() == 0)
+    if (!shouldSend && (currentMillis - lastTimeSentMessage >= pingInterval) && (currentMillis - lastTimeReceivedMessage >= pingInterval))
     {
         messageMap[MessageType::PING];
         shouldSend = true;
@@ -759,6 +762,9 @@ void Peer::onMessage(const uint8_t *incomingData, int len)
 #endif
 
     //updateDelay();
+
+    updateAvailability(true);
+    lastTimeReceivedMessage = millis();
 
     uint8_t incomingDataOffset = 0;
     MessageType messageType;

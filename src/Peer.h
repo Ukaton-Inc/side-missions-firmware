@@ -153,6 +153,11 @@ private:
     bool shouldSend;
 
 public:
+    unsigned long lastTimeSentMessage;
+private:
+    unsigned long lastTimeReceivedMessage;
+
+public:
     std::map<wifiServer::MessageType, std::vector<uint8_t>> messageMap;
     void send();
     static bool shouldSendAll;

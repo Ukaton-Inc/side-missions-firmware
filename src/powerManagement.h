@@ -4,7 +4,7 @@
 
 namespace powerManagement
 {
-    constexpr unsigned long delayUntilSleep = 1000 * 60 * 1;
+    constexpr unsigned long delayUntilSleep = 1000 * 10;
     void print_wakeup_reason();
     void setup();
     void loop();
