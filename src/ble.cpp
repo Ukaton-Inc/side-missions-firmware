@@ -1,13 +1,11 @@
 #include "definitions.h"
 #include "ble.h"
 #include "name.h"
-#if IS_INSOLE
-#include "pressure.h"
-#include "crappyMotion.h"
-#else
 #include "motion.h"
 #include "tflite.h"
 #include "fileTransfer.h"
+#if IS_INSOLE
+#include "pressure.h"
 #endif
 
 namespace ble
@@ -30,9 +28,7 @@ namespace ble
             isServerConnected = true;
             Serial.println("connected");
 
-#ifdef _MOTION_
             motion::start();
-#endif
         };
 
         void onDisconnect(BLEServer *pServer)
@@ -41,12 +37,7 @@ namespace ble
             isServerConnected = false;
             Serial.println("disconnected");
 
-#ifdef _MOTION_
             motion::stop();
-#endif
-#ifdef _CRAPPY_MOTION_
-            crappyMotion::stop();
-#endif
 #ifdef _PRESSURE_
             pressure::stop();
 #endif
@@ -70,14 +61,14 @@ namespace ble
         pAdvertising->addServiceUUID(pService->getUUID());
         pAdvertising->setScanResponse(true);
     }
-    
+
     BLECharacteristic *createCharacteristic(const char *uuid, uint32_t properties, const char *name, BLEService *_pService)
     {
         BLECharacteristic *pCharacteristic = _pService->createCharacteristic(uuid, properties);
 
         BLEDescriptor *pNameDescriptor = pCharacteristic->createDescriptor(NimBLEUUID((uint16_t)0x2901), NIMBLE_PROPERTY::READ);
-        pNameDescriptor->setValue((uint8_t *) name, strlen(name));
-        
+        pNameDescriptor->setValue((uint8_t *)name, strlen(name));
+
         return pCharacteristic;
     }
     BLECharacteristic *createCharacteristic(BLEUUID uuid, uint32_t properties, const char *name, BLEService *_pService)
@@ -85,8 +76,8 @@ namespace ble
         BLECharacteristic *pCharacteristic = _pService->createCharacteristic(uuid, properties);
 
         BLEDescriptor *pNameDescriptor = pCharacteristic->createDescriptor(NimBLEUUID((uint16_t)0x2901), NIMBLE_PROPERTY::READ);
-        pNameDescriptor->setValue((uint8_t *) name, strlen(name));
-        
+        pNameDescriptor->setValue((uint8_t *)name, strlen(name));
+
         return pCharacteristic;
     }
 

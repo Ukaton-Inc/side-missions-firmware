@@ -11,11 +11,7 @@
 
 #include "ble.h"
 #include "definitions.h"
-#if IS_INSOLE
-    #include "crappyMotion.h"
-#else
-    #include "motion.h"
-#endif
+#include "motion.h"
 namespace tfLite
 {
     extern bool isModelLoaded;

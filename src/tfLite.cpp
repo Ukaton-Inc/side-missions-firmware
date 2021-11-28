@@ -245,23 +245,19 @@ namespace tfLite
                     const float threshold = thresholds[i];
                     if (i == LINEAR_ACCELERATION_THRESHOLD)
                     {
-#ifdef _MOTION_
                         imu::Vector<3> linearAccelerationVector = motion::bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
                         if (linearAccelerationVector.magnitude() < threshold)
                         {
                             reachedThresholds = false;
                         }
-#endif
                     }
                     else if (i == ROTATION_RATE_THRESHOLD)
                     {
-#ifdef _MOTION_
                         imu::Vector<3> rotationRateVector = motion::bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
                         if (rotationRateVector.magnitude() < threshold)
                         {
                             reachedThresholds = false;
                         }
-#endif
                     }
                 }
             }
@@ -287,46 +283,34 @@ namespace tfLite
                     switch (i)
                     {
                     case ACCELERATION_BITMASK_INDEX:
-#ifdef _MOTION_
                         motion::bno.getRawVectorData(Adafruit_BNO055::VECTOR_ACCELEROMETER, buffer);
                         size = 3;
                         range = motion::ACCELEROMETER_RANGE;
-#endif
                         break;
                     case GRAVITY_BITMASK_INDEX:
-#ifdef _MOTION_
                         motion::bno.getRawVectorData(Adafruit_BNO055::VECTOR_GRAVITY, buffer);
                         size = 3;
                         range = motion::ACCELEROMETER_RANGE;
-#endif
                         break;
                     case LINEAR_ACCELERATION_BITMASK_INDEX:
-#ifdef _MOTION_
                         motion::bno.getRawVectorData(Adafruit_BNO055::VECTOR_LINEARACCEL, buffer);
                         size = 3;
                         range = motion::ACCELEROMETER_RANGE;
-#endif
                         break;
                     case ROTATION_RATE_BITMASK_INDEX:
-#ifdef _MOTION_
                         motion::bno.getRawVectorData(Adafruit_BNO055::VECTOR_GYROSCOPE, buffer);
                         size = 3;
                         range = motion::GYROSCOPE_RANGE;
-#endif
                         break;
                     case MAGNETOMETER_BITMASK_INDEX:
-#ifdef _MOTION_
                         motion::bno.getRawVectorData(Adafruit_BNO055::VECTOR_MAGNETOMETER, buffer);
                         size = 3;
                         range = motion::MAGNETOMETER_RANGE;
-#endif
                         break;
                     case QUATERNION_BITMASK_INDEX:
-#ifdef _MOTION_
                         motion::bno.getRawQuatData(buffer);
                         size = 4;
                         range = 1;
-#endif
                         break;
                     }
 

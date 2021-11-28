@@ -5,16 +5,14 @@
 #include "ble.h"
 #include "name.h"
 #include "battery.h"
+#include "motion.h"
+#include "tfLite.h"
 #if IS_INSOLE
-    #include "crappyMotion.h"
-    #include "pressure.h"
-    #include "weight.h"
-#else
-    #include "powerManagement.h"
-    #include "motion.h"
-    #include "tfLite.h"
-    #include "fileTransfer.h"
+#include "pressure.h"
+#include "weight.h"
 #endif
+#include "powerManagement.h"
+#include "fileTransfer.h"
 
 void setup()
 {
@@ -24,30 +22,25 @@ void setup()
     ble::setup();
     name::setup();
     battery::setup();
-    #if IS_INSOLE
-        pressure::setup();
-        weight::setup();
-        crappyMotion::setup();
-    #else
-        powerManagement::setup();
-        motion::setup();
-        tfLite::setup();
-        fileTransfer::setup();
-    #endif
-    
+    motion::setup();
+    fileTransfer::setup();
+#if IS_INSOLE
+    pressure::setup();
+    weight::setup();
+#endif
+    powerManagement::setup();
+    tfLite::setup();
     ble::start();
 }
 
 void loop()
 {
     battery::loop();
-    #if IS_INSOLE
-        pressure::loop();
-        crappyMotion::loop();
-        weight::loop();
-    #else
-        powerManagement::loop();
-        motion::loop();
-        tfLite::loop();
-    #endif
+    motion::loop();
+#if IS_INSOLE
+    pressure::loop();
+    weight::loop();
+#endif
+    powerManagement::loop();
+    tfLite::loop();
 }
