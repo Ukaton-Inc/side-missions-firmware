@@ -129,9 +129,6 @@ namespace pressureSensor
     std::map<DataType, bool> didUpdate;
     void update()
     {
-#if DEBUG
-        Serial.print("PRESSURE: ");
-#endif
         uint8_t pinConfigurationIndex = isRightInsole? 0:1;
         for (uint8_t pressureSensorIndex = 0; pressureSensorIndex < number_of_pressure_sensors; pressureSensorIndex++)
         {
@@ -140,16 +137,7 @@ namespace pressureSensor
                 digitalWrite(configurationPins[configurationPinIndex], bothPinConfigurations[pinConfigurationIndex][pressureSensorIndex][configurationPinIndex]);
             }
             pressureDataDoubleByte[pressureSensorIndex] = analogRead(dataPin);
-#if DEBUG
-            Serial.print(pressureSensorIndex);
-            Serial.print(": ");
-            Serial.print(pressureDataDoubleByte[pressureSensorIndex]);
-            Serial.print(", ");
-#endif
         }
-#if DEBUG
-        Serial.println();
-#endif
         didUpdate.clear();
     }
 

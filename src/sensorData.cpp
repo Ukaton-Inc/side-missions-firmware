@@ -1,3 +1,4 @@
+#include "definitions.h"
 #include "sensorData.h"
 #include "type.h"
 
@@ -81,25 +82,6 @@ namespace sensorData
                 Serial.println("invalid sensor type");
 #endif
                 break;
-            }
-        }
-
-        if (sensorType == SensorType::PRESSURE)
-        {
-            if (pressureConfiguration[(uint8_t)pressureSensor::DataType::SINGLE_BYTE] > 0 || pressureConfiguration[(uint8_t)pressureSensor::DataType::DOUBLE_BYTE] > 0)
-            {
-                if (pressureConfiguration[(uint8_t)pressureSensor::DataType::SINGLE_BYTE] > 0 && pressureConfiguration[(uint8_t)pressureSensor::DataType::DOUBLE_BYTE] > 0)
-                {
-                    pressureConfiguration[(uint8_t)pressureSensor::DataType::SINGLE_BYTE] = 0;
-                }
-
-                pressureConfiguration[(uint8_t)pressureSensor::DataType::MASS] = 0;
-                pressureConfiguration[(uint8_t)pressureSensor::DataType::CENTER_OF_MASS] = 0;
-                pressureConfiguration[(uint8_t)pressureSensor::DataType::HEEL_TO_TOE] = 0;
-            }
-            if (pressureConfiguration[(uint8_t)pressureSensor::DataType::CENTER_OF_MASS] != 0)
-            {
-                pressureConfiguration[(uint8_t)pressureSensor::DataType::HEEL_TO_TOE] = 0;
             }
         }
     }
