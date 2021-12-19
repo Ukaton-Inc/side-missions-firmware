@@ -22,6 +22,15 @@ namespace type
         EEPROM.commit();
     }
 
+    void onTypeUpdate() {
+        _isInsole = (type == Type::LEFT_INSOLE) || (type == Type::RIGHT_INSOLE);
+        if (_isInsole)
+        {
+            _isRightInsole = (type == Type::RIGHT_INSOLE);
+            pressureSensor::updateSide(_isRightInsole);
+        }
+    }
+
     void setup()
     {
         eepromAddress = eepromUtils::reserveSpace(sizeof(type));
@@ -34,6 +43,8 @@ namespace type
         {
             loadFromEEPROM();
         }
+
+        onTypeUpdate();
     }
 
     Type getType()
@@ -54,13 +65,6 @@ namespace type
         saveToEEPROM();
         Serial.print("changed device type to: ");
         Serial.println((uint8_t)type);
-
-        _isInsole = (type == Type::LEFT_INSOLE) || (type == Type::RIGHT_INSOLE);
-        if (_isInsole)
-        {
-            _isRightInsole = (type == Type::RIGHT_INSOLE);
-
-            pressureSensor::updateSide(_isRightInsole);
-        }
+        onTypeUpdate();
     }
 } // namespace type
