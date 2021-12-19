@@ -10,6 +10,12 @@
         "new": "cpp",
         "random": "cpp",
         "limits": "cpp",
-        "*.tcc": "cpp"
+        "*.tcc": "cpp",
+        "string_view": "cpp",
+        "regex": "cpp",
+        "chrono": "cpp",
+        "string": "cpp",
+        "vector": "cpp",
+        "typeinfo": "cpp"
     }
 }

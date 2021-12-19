@@ -2,45 +2,37 @@
 
 #include "definitions.h"
 #include "eepromUtils.h"
-#include "ble.h"
+#include "ble/ble.h"
 #include "name.h"
 #include "battery.h"
-#include "motion.h"
-#include "tfLite.h"
-#if IS_INSOLE
-#include "pressure.h"
-#include "weight.h"
-#endif
-#include "powerManagement.h"
-#include "fileTransfer.h"
+#include "motionSensor.h"
+#include "type.h"
+#include "moveToWake.h"
+#include "pressureSensor.h"
+#include "sensorData.h"
 
 void setup()
 {
     Serial.begin(115200);
+    setCpuFrequencyMhz(CPU_FREQUENCY_MHZ);
+
+#if DEBUG
+    Serial.println("setup");
+#endif
 
     eepromUtils::setup();
-    ble::setup();
     name::setup();
-    battery::setup();
-    motion::setup();
-    fileTransfer::setup();
-#if IS_INSOLE
-    pressure::setup();
-    weight::setup();
-#endif
-    powerManagement::setup();
-    tfLite::setup();
-    ble::start();
+    type::setup();
+    motionSensor::setup();
+    moveToWake::setup();
+    pressureSensor::setup();
+    ble::setup();
 }
 
 void loop()
 {
-    battery::loop();
-    motion::loop();
-#if IS_INSOLE
-    pressure::loop();
-    weight::loop();
-#endif
-    powerManagement::loop();
-    tfLite::loop();
+    motionSensor::loop();
+    moveToWake::loop();
+    sensorData::loop();
+    ble::loop();
 }

@@ -2,9 +2,14 @@
 #ifndef _DEFINITIONS_
 #define _DEFINITIONS_
 
+#define DEBUG true
+
+#define DEFAUlT_NAME "Ukaton Mission"
+
+#define CPU_FREQUENCY_MHZ 80
+#define ENABLE_MOVE_TO_WAKE false
+
 #define IS_INSOLE true
-#if IS_INSOLE
-    #define IS_RIGHT_INSOLE true
-#endif
+#define IS_RIGHT_INSOLE true
 
 #endif // _DEFINITIONS_

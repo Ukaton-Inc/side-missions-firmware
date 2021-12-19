@@ -3,22 +3,15 @@
 #define _NAME_
 
 #include <Arduino.h>
-#include "ble.h"
 
 namespace name
 {
-    extern const uint8_t MAX__NAME_LENGTH;
-
-    extern std::string name;
-    extern uint16_t eepromAddress;
-
-    extern BLECharacteristic *pCharacteristic;
-    class CharacteristicCallbacks;
-
     void setup();
-    void loadFromEEPROM();
-    void saveToEEPROM();
-    void setName(char* newName);
+
+    extern const uint8_t MAX__NAME_LENGTH;
+    const std::string *getName();
+    void setName(const char* newName, size_t length);
+    void setName(const char* newName);
 } // namespace name
 
 #endif // _NAME_
