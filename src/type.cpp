@@ -1,11 +1,12 @@
 #include "type.h"
+#include "definitions.h"
 #include "eepromUtils.h"
 #include "definitions.h"
 #include "pressureSensor.h"
 
 namespace type
 {
-    Type type = Type::MOTION_MODULE;
+    Type type = IS_INSOLE ? (IS_RIGHT_INSOLE ? Type::RIGHT_INSOLE : Type::LEFT_INSOLE) : Type::MOTION_MODULE;
     bool _isInsole = false;
     bool _isRightInsole = false;
 
@@ -22,7 +23,8 @@ namespace type
         EEPROM.commit();
     }
 
-    void onTypeUpdate() {
+    void onTypeUpdate()
+    {
         _isInsole = (type == Type::LEFT_INSOLE) || (type == Type::RIGHT_INSOLE);
         if (_isInsole)
         {
