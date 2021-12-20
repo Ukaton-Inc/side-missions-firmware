@@ -192,10 +192,6 @@ namespace pressureSensor
                 mass += pressureDataDoubleByte[index];
             }
             didUpdate[DataType::MASS] = true;
-#if DEBUG
-            Serial.print("MASS: ");
-            Serial.println(mass);
-#endif
         }
         return &mass;
     }
@@ -216,11 +212,6 @@ namespace pressureSensor
             }
 
             didUpdate[DataType::HEEL_TO_TOE] = true;
-
-#if DEBUG
-            Serial.print("Heel to toe: ");
-            Serial.println(heelToToe);
-#endif
         }
         return &heelToToe;
     }

@@ -38,7 +38,7 @@ namespace sensorData
         for (uint8_t offset = 0; offset < size; offset += 3)
         {
             auto sensorDataTypeIndex = newConfiguration[offset];
-            uint16_t delay = ((uint16_t)newConfiguration[offset + 2] << 8) | newConfiguration[offset + 1];
+            uint16_t delay = ((uint16_t)newConfiguration[offset + 2] << 8) | (uint16_t)newConfiguration[offset + 1];
             delay -= (delay % min_delay_ms);
 
 #if DEBUG
@@ -69,6 +69,8 @@ namespace sensorData
                 if (pressureSensor::isValidDataType((pressureSensor::DataType)sensorDataTypeIndex))
                 {
                     pressureConfiguration[sensorDataTypeIndex] = delay;
+                    Serial.print("set: ");
+                    Serial.println(pressureConfiguration[sensorDataTypeIndex]);
                 }
                 else
                 {
@@ -82,6 +84,14 @@ namespace sensorData
                 Serial.println("invalid sensor type");
 #endif
                 break;
+            }
+        }
+
+        if (sensorType == SensorType::PRESSURE)
+        {
+            if (pressureConfiguration[(uint8_t)pressureSensor::DataType::SINGLE_BYTE] > 0 && pressureConfiguration[(uint8_t)pressureSensor::DataType::DOUBLE_BYTE] > 0)
+            {
+                pressureConfiguration[(uint8_t)pressureSensor::DataType::SINGLE_BYTE] = 0;
             }
         }
     }
@@ -103,6 +113,24 @@ namespace sensorData
             setConfiguration(&newConfigurations[offset], _size, sensorType);
             offset += _size;
         }
+
+#if DEBUG
+        Serial.println("motion configuration:");
+        for (uint8_t index = 0; index < sizeof(motionConfiguration) / 2; index++)
+        {
+            Serial.print(motionConfiguration[index]);
+            Serial.print(", ");
+        }
+        Serial.println();
+
+        Serial.println("pressure configuration:");
+        for (uint8_t index = 0; index < sizeof(pressureConfiguration) / 2; index++)
+        {
+            Serial.print(pressureConfiguration[index]);
+            Serial.print(", ");
+        }
+        Serial.println();
+#endif
 
         updateHasAtLeastOneNonzeroDelay();
     }
@@ -131,9 +159,9 @@ namespace sensorData
         updateHasAtLeastOneNonzeroDelay();
     }
 
-    uint8_t motionData[(uint8_t)motionSensor::DataSize::TOTAL]{0};
+    uint8_t motionData[(uint8_t)motionSensor::DataSize::TOTAL + (uint8_t)motionSensor::DataType::COUNT]{0};
     uint8_t motionDataSize = 0;
-    uint8_t pressureData[(uint8_t)pressureSensor::DataSize::TOTAL]{0};
+    uint8_t pressureData[(uint8_t)pressureSensor::DataSize::TOTAL + (uint8_t)pressureSensor::DataType::COUNT]{0};
     uint8_t pressureDataSize = 0;
     void clearMotionData()
     {
@@ -145,8 +173,8 @@ namespace sensorData
         clearMotionData();
         for (uint8_t dataTypeIndex = 0; dataTypeIndex < (uint8_t)motionSensor::DataType::COUNT; dataTypeIndex++)
         {
-            uint16_t delay = motionConfiguration[dataTypeIndex];
-            if (delay != 0 && (lastDataUpdateTime % delay == 0))
+            const uint16_t delay = motionConfiguration[dataTypeIndex];
+            if (delay != 0 && ((lastDataUpdateTime % delay) == 0))
             {
                 auto dataType = (motionSensor::DataType)dataTypeIndex;
 
@@ -205,8 +233,8 @@ namespace sensorData
         bool didUpdateSensor = false;
         for (uint8_t dataTypeIndex = 0; dataTypeIndex < (uint8_t)pressureSensor::DataType::COUNT; dataTypeIndex++)
         {
-            uint16_t delay = pressureConfiguration[dataTypeIndex];
-            if (delay != 0 && (lastDataUpdateTime % delay == 0))
+            const uint16_t delay = pressureConfiguration[dataTypeIndex];
+            if (delay != 0 && ((lastDataUpdateTime % delay) == 0))
             {
                 if (!didUpdateSensor)
                 {
@@ -237,30 +265,12 @@ namespace sensorData
                 {
                     dataSize = (uint8_t)pressureSensor::DataSize::MASS;
                     data = (uint8_t *)pressureSensor::getMass();
-#if DEBUG
-                    Serial.print("PACKING MASS: ");
-                    for (auto i = 0; i < dataSize; i++)
-                    {
-                        Serial.print(data[i]);
-                        Serial.print(", ");
-                    }
-                    Serial.println();
-#endif
                 }
                 break;
                 case pressureSensor::DataType::HEEL_TO_TOE:
                 {
                     dataSize = (uint8_t)pressureSensor::DataSize::HEEL_TO_TOE;
                     data = (uint8_t *)pressureSensor::getHeelToToe();
-#if DEBUG
-                    Serial.print("PACKING HEEL To tOE: ");
-                    for (auto i = 0; i < dataSize; i++)
-                    {
-                        Serial.print(data[i]);
-                        Serial.print(", ");
-                    }
-                    Serial.println();
-#endif
                 }
                 break;
                 default:

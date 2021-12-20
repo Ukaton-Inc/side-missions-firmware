@@ -19,9 +19,9 @@ namespace sensorData
     void setConfigurations(const uint8_t *newConfigurations, uint8_t size);
     void clearConfigurations();
     
-    extern uint8_t motionData[(uint8_t) motionSensor::DataSize::TOTAL];
+    extern uint8_t motionData[(uint8_t)motionSensor::DataSize::TOTAL + (uint8_t)motionSensor::DataType::COUNT];
     extern uint8_t motionDataSize;
-    extern uint8_t pressureData[(uint8_t) pressureSensor::DataSize::TOTAL];
+    extern uint8_t pressureData[(uint8_t)pressureSensor::DataSize::TOTAL + (uint8_t)pressureSensor::DataType::COUNT];
     extern uint8_t pressureDataSize;
 
     extern unsigned long lastDataUpdateTime;
