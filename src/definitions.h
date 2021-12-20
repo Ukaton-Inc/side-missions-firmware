@@ -2,7 +2,7 @@
 #ifndef _DEFINITIONS_
 #define _DEFINITIONS_
 
-#define DEBUG true
+#define DEBUG false
 
 #define DEFAUlT_NAME "Ukaton Mission"
 
