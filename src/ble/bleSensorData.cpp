@@ -36,8 +36,9 @@ namespace bleSensorData {
     void updateDataCharacteristic() {
         dataSize = 0;
 
-        MEMCPY(&data[dataSize], &lastDataUpdateTime, sizeof(lastDataUpdateTime));
-        dataSize += sizeof(lastDataUpdateTime);
+        uint16_t timestamp = (uint16_t) lastDataUpdateTime;
+        MEMCPY(&data[dataSize], &timestamp, sizeof(timestamp));
+        dataSize += sizeof(timestamp);
 
         data[dataSize++] = (uint8_t) sensorData::SensorType::MOTION;
         data[dataSize++] = sensorData::motionDataSize;
