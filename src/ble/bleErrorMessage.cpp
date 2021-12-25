@@ -6,7 +6,7 @@ namespace bleErrorMessage {
 
     void setup()
     {
-        pErrorMessageCharacteristic = ble::createCharacteristic(GENERATE_UUID("0002"), NIMBLE_PROPERTY::NOTIFY , "error message");
+        pErrorMessageCharacteristic = ble::createCharacteristic(GENERATE_UUID("2001"), NIMBLE_PROPERTY::NOTIFY , "error message");
     }
 
     void send(const char* message) {

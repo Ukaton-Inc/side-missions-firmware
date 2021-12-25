@@ -35,7 +35,7 @@ namespace bleSensorData {
     uint8_t dataSize = 0;
     void updateDataCharacteristic() {
         dataSize = 0;
-
+        
         uint16_t timestamp = (uint16_t) lastDataUpdateTime;
         MEMCPY(&data[dataSize], &timestamp, sizeof(timestamp));
         dataSize += sizeof(timestamp);
@@ -55,10 +55,10 @@ namespace bleSensorData {
     }
     
     void setup() {
-        pConfigurationCharacteristic = ble::createCharacteristic(GENERATE_UUID("0006"), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE, "sensor data configuration");
+        pConfigurationCharacteristic = ble::createCharacteristic(GENERATE_UUID("6001"), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE, "sensor data configuration");
         pConfigurationCharacteristic->setCallbacks(new ConfigurationCharacteristicCallbacks());
         updateConfigurationCharacteristic();
-        pDataCharacteristic = ble::createCharacteristic(GENERATE_UUID("0007"), NIMBLE_PROPERTY::NOTIFY, "sensor data");
+        pDataCharacteristic = ble::createCharacteristic(GENERATE_UUID("6002"), NIMBLE_PROPERTY::NOTIFY, "sensor data");
     }
     
     void loop() {

@@ -15,7 +15,7 @@ namespace bleType {
 
     void setup()
     {
-        pCharacteristic = ble::createCharacteristic(GENERATE_UUID("0003"), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE, "device type");
+        pCharacteristic = ble::createCharacteristic(GENERATE_UUID("3001"), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE, "device type");
         pCharacteristic->setCallbacks(new CharacteristicCallbacks());
         pCharacteristic->setValue((uint8_t)type::getType());
     }

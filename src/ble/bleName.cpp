@@ -21,7 +21,7 @@ namespace bleName {
 
     void setup()
     {
-        pCharacteristic = ble::createCharacteristic(GENERATE_UUID("0004"), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE, "name");
+        pCharacteristic = ble::createCharacteristic(GENERATE_UUID("4001"), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE, "name");
         pCharacteristic->setCallbacks(new CharacteristicCallbacks());
         pCharacteristic->setValue(*name::getName());
     }
