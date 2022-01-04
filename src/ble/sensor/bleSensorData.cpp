@@ -1,5 +1,6 @@
 #include "bleSensorData.h"
-#include "sensorData.h"
+#include "sensor/sensorData.h"
+#include "wifi/webSocket.h"
 
 namespace bleSensorData {
     BLECharacteristic *pConfigurationCharacteristic;
@@ -62,7 +63,7 @@ namespace bleSensorData {
     }
     
     void loop() {
-        if (lastDataUpdateTime != sensorData::lastDataUpdateTime && (sensorData::motionDataSize + sensorData::pressureDataSize > 0)) {
+        if (lastDataUpdateTime != sensorData::lastDataUpdateTime && (sensorData::motionDataSize + sensorData::pressureDataSize > 0) && !webSocket::isConnectedToClient()) {
             lastDataUpdateTime = sensorData::lastDataUpdateTime;
             updateDataCharacteristic();
         }

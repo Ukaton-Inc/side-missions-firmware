@@ -3,11 +3,12 @@
 
 #include "bleDebug.h"
 #include "bleErrorMessage.h"
-#include "bleType.h"
-#include "bleName.h"
-#include "bleMotionCalibration.h"
-#include "bleSensorData.h"
+#include "information/bleType.h"
+#include "information/bleName.h"
+#include "sensor/bleMotionCalibration.h"
+#include "sensor/bleSensorData.h"
 #include "bleBattery.h"
+#include "wifi/bleWifi.h"
 
 namespace ble
 {
@@ -26,6 +27,7 @@ namespace ble
         {
             isServerConnected = true;
             Serial.println("connected");
+            bleSensorData::updateConfigurationCharacteristic();
         };
 
         void onDisconnect(BLEServer *pServer)
@@ -33,7 +35,7 @@ namespace ble
             lastTimeConnected = millis();
             isServerConnected = false;
             Serial.println("disconnected");
-            bleSensorData::clearConfigurations();
+            //bleSensorData::clearConfigurations();
         }
     };
 
@@ -54,6 +56,7 @@ namespace ble
         bleName::setup();
         bleMotionCalibration::setup();
         bleSensorData::setup();
+        bleWifi::setup();
         bleBattery::setup();
 
         start();
@@ -92,6 +95,7 @@ namespace ble
             bleMotionCalibration::loop();
             bleSensorData::loop();
             bleBattery::loop();
+            bleWifi::loop();
         }
     }
 } // namespace ble

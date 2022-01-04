@@ -2,7 +2,7 @@
 #ifndef _BLE_MOTION_CALIBRATION_
 #define _BLE_MOTION_CALIBRATION_
 
-#include "ble.h"
+#include "ble/ble.h"
 
 namespace bleMotionCalibration
 {

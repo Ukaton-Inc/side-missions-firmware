@@ -1,5 +1,6 @@
 #include "bleMotionCalibration.h"
-#include "motionSensor.h"
+#include "sensor/motionSensor.h"
+#include "wifi/webSocket.h"
 
 namespace bleMotionCalibration {
     BLECharacteristic *pCharacteristic;
@@ -15,7 +16,7 @@ namespace bleMotionCalibration {
 
     unsigned long lastCalibrationUpdateTime;
     void loop() {
-        if (lastCalibrationUpdateTime != motionSensor::lastCalibrationUpdateTime) {
+        if (lastCalibrationUpdateTime != motionSensor::lastCalibrationUpdateTime && !webSocket::isConnectedToClient()) {
             lastCalibrationUpdateTime = motionSensor::lastCalibrationUpdateTime;
             updateDataCharacteristic(true);
         }

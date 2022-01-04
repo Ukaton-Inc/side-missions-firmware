@@ -1,5 +1,5 @@
 #include "moveToWake.h"
-#include "motionSensor.h"
+#include "sensor/motionSensor.h"
 #include "definitions.h"
 
 #include "ble/ble.h"

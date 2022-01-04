@@ -2,11 +2,10 @@
 #include "eepromUtils.h"
 #include "definitions.h"
 #include "services/gap/ble_svc_gap.h"
+#include <WiFi.h>
 
 namespace name
 {
-    const uint8_t MAX_NAME_LENGTH = 30;
-
     std::string name = DEFAUlT_NAME;
     uint16_t eepromAddress;
 
@@ -16,13 +15,13 @@ namespace name
     void saveToEEPROM() {
         Serial.print("Saving name to EEPROM: ");
         Serial.println(name.c_str());
-        EEPROM.writeString(eepromAddress, name.substr(0, min((const uint8_t)name.length(), MAX_NAME_LENGTH)).c_str());
+        EEPROM.writeString(eepromAddress, name.substr(0, min((const uint8_t)name.length(), MAX__NAME_LENGTH)).c_str());
         EEPROM.commit();
     }
 
     void setup()
     {
-        eepromAddress = eepromUtils::reserveSpace(MAX_NAME_LENGTH);
+        eepromAddress = eepromUtils::reserveSpace(MAX__NAME_LENGTH);
 
         if (eepromUtils::firstInitialized) {
             saveToEEPROM();
@@ -35,6 +34,7 @@ namespace name
         Serial.println(name.c_str());
 
         ble_svc_gap_device_name_set(name.c_str());
+        WiFi.setHostname(name.c_str());
     }
 
     const std::string *getName() {
@@ -42,12 +42,13 @@ namespace name
     }
     void setName(const char *newName, size_t length)
     {
-        if (length <= MAX_NAME_LENGTH) {
+        if (length <= MAX__NAME_LENGTH) {
             name.assign(newName, length);
             saveToEEPROM();
             Serial.print("changed name to: ");
             Serial.println(name.c_str());
             ble_svc_gap_device_name_set(name.c_str());
+            WiFi.setHostname(name.c_str());
         }
         else {
             log_e("name's too long");

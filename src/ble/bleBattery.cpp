@@ -24,6 +24,6 @@ namespace bleBattery
     }
 
     void loop() {
-        
+        // FIX LATER
     }
 } // namespace bleBattery

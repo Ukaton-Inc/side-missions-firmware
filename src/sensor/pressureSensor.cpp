@@ -1,7 +1,7 @@
 #include "pressureSensor.h"
 #include "definitions.h"
 #include "eepromUtils.h"
-#include "type.h"
+#include "information/type.h"
 
 #include <Arduino.h>
 #include <map>

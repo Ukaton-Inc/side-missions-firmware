@@ -4,7 +4,7 @@ namespace eepromUtils
 {
     constexpr uint16_t EEPROM_SIZE = 512;
 
-    constexpr uint8_t EEPROM_SCHEMA = 2;
+    constexpr uint8_t EEPROM_SCHEMA = 0;
     unsigned char schema;
     bool firstInitialized = false;
 

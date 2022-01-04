@@ -2,7 +2,7 @@
 #include "definitions.h"
 #include "eepromUtils.h"
 #include "definitions.h"
-#include "pressureSensor.h"
+#include "sensor/pressureSensor.h"
 
 namespace type
 {

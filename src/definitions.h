@@ -12,4 +12,7 @@
 #define IS_INSOLE false
 #define IS_RIGHT_INSOLE false
 
+#define WIFI_SSID "WIFI_SSID"
+#define WIFI_PASSWORD "WIFI_PASSWORD"
+
 #endif // _DEFINITIONS_

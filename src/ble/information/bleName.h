@@ -2,7 +2,7 @@
 #ifndef _BLE_NAME_
 #define _BLE_NAME_
 
-#include "ble.h"
+#include "ble/ble.h"
 
 namespace bleName
 {

@@ -1,5 +1,5 @@
 #include "bleName.h"
-#include "name.h"
+#include "information/name.h"
 
 namespace bleName {
     BLECharacteristic *pCharacteristic;

@@ -1,6 +1,9 @@
 #include "definitions.h"
 #include "sensorData.h"
-#include "type.h"
+#include "information/type.h"
+
+#include "wifi/webSocket.h"
+#include "ble/ble.h"
 
 namespace sensorData
 {
@@ -69,8 +72,6 @@ namespace sensorData
                 if (pressureSensor::isValidDataType((pressureSensor::DataType)sensorDataTypeIndex))
                 {
                     pressureConfiguration[sensorDataTypeIndex] = delay;
-                    Serial.print("set: ");
-                    Serial.println(pressureConfiguration[sensorDataTypeIndex]);
                 }
                 else
                 {
@@ -303,7 +304,7 @@ namespace sensorData
     void loop()
     {
         currentTime = millis();
-        if (hasAtLeastOneNonzeroDelay && currentTime >= lastDataUpdateTime + min_delay_ms)
+        if (hasAtLeastOneNonzeroDelay && currentTime >= lastDataUpdateTime + min_delay_ms && (ble::isServerConnected || webSocket::isConnectedToClient()))
         {
             lastDataUpdateTime = currentTime - (currentTime % min_delay_ms);
             updateData();

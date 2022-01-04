@@ -3,13 +3,14 @@
 #include "definitions.h"
 #include "eepromUtils.h"
 #include "ble/ble.h"
-#include "name.h"
+#include "wifi/wifi.h"
+#include "information/name.h"
 #include "battery.h"
-#include "motionSensor.h"
-#include "type.h"
+#include "sensor/motionSensor.h"
+#include "information/type.h"
 #include "moveToWake.h"
-#include "pressureSensor.h"
-#include "sensorData.h"
+#include "sensor/pressureSensor.h"
+#include "sensor/sensorData.h"
 
 void setup()
 {
@@ -26,6 +27,7 @@ void setup()
     motionSensor::setup();
     moveToWake::setup();
     pressureSensor::setup();
+    wifi::setup();
     ble::setup();
 }
 
@@ -34,5 +36,6 @@ void loop()
     motionSensor::loop();
     moveToWake::loop();
     sensorData::loop();
+    wifi::loop();
     ble::loop();
 }

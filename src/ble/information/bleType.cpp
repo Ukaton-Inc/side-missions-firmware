@@ -1,5 +1,5 @@
 #include "bleType.h"
-#include "type.h"
+#include "information/type.h"
 
 namespace bleType {
     BLECharacteristic *pCharacteristic;

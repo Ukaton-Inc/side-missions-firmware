@@ -2,7 +2,7 @@
 #ifndef _BLE_SENSOR_DATA_
 #define _BLE_SENSOR_DATA_
 
-#include "ble.h"
+#include "ble/ble.h"
 
 namespace bleSensorData
 {
@@ -10,6 +10,7 @@ namespace bleSensorData
     class ConfigurationCharacteristicCallbacks;
     extern BLECharacteristic *pDataCharacteristic;
 
+    void updateConfigurationCharacteristic();
     void clearConfigurations();
 
     void setup();

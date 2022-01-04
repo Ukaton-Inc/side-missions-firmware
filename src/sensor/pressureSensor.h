@@ -19,7 +19,7 @@ namespace pressureSensor
         CENTER_OF_MASS,
         MASS,
         HEEL_TO_TOE,
-        COUNT = 6
+        COUNT
     };
     bool isValidDataType(DataType dataType);
     enum class DataSize : uint8_t

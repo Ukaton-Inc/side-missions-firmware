@@ -2,7 +2,7 @@
 #ifndef _BLE_TYPE_
 #define _BLE_TYPE_
 
-#include "ble.h"
+#include "ble/ble.h"
 
 namespace bleType
 {
