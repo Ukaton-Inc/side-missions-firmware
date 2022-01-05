@@ -26,7 +26,7 @@ namespace ble
         void onConnect(BLEServer *pServer)
         {
             isServerConnected = true;
-            Serial.println("connected");
+            Serial.println("connected via ble");
             bleSensorData::updateConfigurationCharacteristic();
         };
 
@@ -34,7 +34,7 @@ namespace ble
         {
             lastTimeConnected = millis();
             isServerConnected = false;
-            Serial.println("disconnected");
+            Serial.println("disconnected via ble");
             //bleSensorData::clearConfigurations();
         }
     };
@@ -84,10 +84,8 @@ namespace ble
     void start()
     {
         pService->start();
-        pAdvertising->start();
-        #if DEBUG
-            Serial.println("starting ble");
-        #endif
+        pServer->startAdvertising();
+        Serial.println("starting ble...");
     }
 
     void loop() {

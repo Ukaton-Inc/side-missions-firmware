@@ -2,6 +2,8 @@
 #include "wifiServer.h"
 #include "webSocket.h"
 
+#include "ble/ble.h"
+
 #include "information/name.h"
 #include "information/type.h"
 #include "debug.h"
@@ -41,15 +43,20 @@ namespace webSocket
 
     std::map<MessageType, bool> _clientMessageFlags;
     bool shouldSendToClient = false;
+    bool sentInitialPayload = false;
     void _onClientConnection()
     {
-        Serial.println("Connected to client");
+        Serial.println("Connected to websocket client");
+        ble::pServer->stopAdvertising();
+        sentInitialPayload = false;
     }
     void _onClientDisconnection()
     {
-        Serial.println("Disconnected from client");
+        Serial.println("Disconnected from websocket client");
         _clientMessageFlags.clear();
-        //sensorData::clearConfigurations();
+        ble::pServer->startAdvertising();
+        sensorData::clearConfigurations();
+        sentInitialPayload = false;
     }
 
     uint8_t onClientRequestGetDebug(uint8_t *data, uint8_t dataOffset)
@@ -341,8 +348,12 @@ namespace webSocket
             Serial.println();
 #endif
 
-            server.binaryAll(_clientMessageData, _clientMessageDataSize);
-
+            //server.binaryAll(_clientMessageData, _clientMessageDataSize);
+            server.binary(client->id(), _clientMessageData, _clientMessageDataSize);
+            
+            if (!sentInitialPayload) {
+                sentInitialPayload = true;
+            }
             shouldSendToClient = false;
             _clientMessageFlags.clear();
         }
@@ -352,9 +363,11 @@ namespace webSocket
         currentTime = millis();
         if (isConnectedToClient() && client->canSend())
         {
-            batteryLevelLoop();
-            motionCalibrationLoop();
-            sensorDataLoop();
+            if (sentInitialPayload) {
+                batteryLevelLoop();
+                motionCalibrationLoop();
+                sensorDataLoop();
+            }
             webSocketLoop();
         }
     }

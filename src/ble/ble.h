@@ -26,6 +26,7 @@ namespace ble
     BLECharacteristic *createCharacteristic(BLEUUID uuid, uint32_t properties, const char *name, BLEService *_pService = pService);
 
     void start();
+    void stop();
     void loop();
 } // namespace ble
 
