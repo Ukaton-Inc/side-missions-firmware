@@ -49,6 +49,7 @@ namespace webSocket
         Serial.println("Connected to websocket client");
         ble::pServer->stopAdvertising();
         sentInitialPayload = false;
+        server.enable(false);
     }
     void _onClientDisconnection()
     {
@@ -57,6 +58,7 @@ namespace webSocket
         ble::pServer->startAdvertising();
         sensorData::clearConfigurations();
         sentInitialPayload = false;
+        server.enable(true);
     }
 
     uint8_t onClientRequestGetDebug(uint8_t *data, uint8_t dataOffset)
@@ -265,10 +267,20 @@ namespace webSocket
 
     uint8_t _clientMessageData[7 + 1 + 1 + name::MAX__NAME_LENGTH + sizeof(motionSensor::calibration) + sizeof(sensorData::motionConfiguration) + sizeof(sensorData::pressureConfiguration) + 2 + sizeof(sensorData::motionData) + 2 + sizeof(sensorData::pressureData) + 1];
     uint8_t _clientMessageDataSize = 0;
-    void webSocketLoop()
-    {
-        server.cleanupClients();
 
+    unsigned long lastTimeServerCleanedUpClients = 0;
+    const uint16_t cleanup_clients_delay_ms = 1000;
+    void cleanupClientsLoop()
+    {
+        if (currentTime >= lastTimeServerCleanedUpClients + cleanup_clients_delay_ms)
+        {
+            lastTimeServerCleanedUpClients = currentTime - (currentTime % cleanup_clients_delay_ms);
+            server.cleanupClients();
+        }
+    }
+
+    void messageLoop()
+    {
         if (shouldSendToClient)
         {
             _clientMessageDataSize = 0;
@@ -309,22 +321,22 @@ namespace webSocket
                     _clientMessageDataSize += sizeof(sensorData::pressureConfiguration);
                     break;
                 case MessageType::SENSOR_DATA:
-                    {
-                        uint16_t timestamp = (uint16_t)lastSensorDataUpdateTime;
-                        MEMCPY(&_clientMessageData[_clientMessageDataSize], &timestamp, sizeof(timestamp));
-                        _clientMessageDataSize += sizeof(timestamp);
+                {
+                    uint16_t timestamp = (uint16_t)lastSensorDataUpdateTime;
+                    MEMCPY(&_clientMessageData[_clientMessageDataSize], &timestamp, sizeof(timestamp));
+                    _clientMessageDataSize += sizeof(timestamp);
 
-                        _clientMessageData[_clientMessageDataSize++] = (uint8_t)sensorData::SensorType::MOTION;
-                        _clientMessageData[_clientMessageDataSize++] = sensorData::motionDataSize;
-                        memcpy(&_clientMessageData[_clientMessageDataSize], sensorData::motionData, sensorData::motionDataSize);
-                        _clientMessageDataSize += sensorData::motionDataSize;
+                    _clientMessageData[_clientMessageDataSize++] = (uint8_t)sensorData::SensorType::MOTION;
+                    _clientMessageData[_clientMessageDataSize++] = sensorData::motionDataSize;
+                    memcpy(&_clientMessageData[_clientMessageDataSize], sensorData::motionData, sensorData::motionDataSize);
+                    _clientMessageDataSize += sensorData::motionDataSize;
 
-                        _clientMessageData[_clientMessageDataSize++] = (uint8_t)sensorData::SensorType::PRESSURE;
-                        _clientMessageData[_clientMessageDataSize++] = sensorData::pressureDataSize;
-                        memcpy(&_clientMessageData[_clientMessageDataSize], sensorData::pressureData, sensorData::pressureDataSize);
-                        _clientMessageDataSize += sensorData::pressureDataSize;
-                    }
-                    break;
+                    _clientMessageData[_clientMessageDataSize++] = (uint8_t)sensorData::SensorType::PRESSURE;
+                    _clientMessageData[_clientMessageDataSize++] = sensorData::pressureDataSize;
+                    memcpy(&_clientMessageData[_clientMessageDataSize], sensorData::pressureData, sensorData::pressureDataSize);
+                    _clientMessageDataSize += sensorData::pressureDataSize;
+                }
+                break;
                 case MessageType::BATTERY_LEVEL:
                     // FIX LATER
                     _clientMessageData[_clientMessageDataSize++] = 100;
@@ -350,8 +362,9 @@ namespace webSocket
 
             //server.binaryAll(_clientMessageData, _clientMessageDataSize);
             server.binary(client->id(), _clientMessageData, _clientMessageDataSize);
-            
-            if (!sentInitialPayload) {
+
+            if (!sentInitialPayload)
+            {
                 sentInitialPayload = true;
             }
             shouldSendToClient = false;
@@ -361,14 +374,18 @@ namespace webSocket
     void loop()
     {
         currentTime = millis();
+
+        cleanupClientsLoop();
+
         if (isConnectedToClient() && client->canSend())
         {
-            if (sentInitialPayload) {
+            if (sentInitialPayload)
+            {
                 batteryLevelLoop();
                 motionCalibrationLoop();
                 sensorDataLoop();
             }
-            webSocketLoop();
+            messageLoop();
         }
     }
 } // namespace webSocket
