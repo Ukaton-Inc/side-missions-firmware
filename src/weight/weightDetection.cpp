@@ -10,11 +10,6 @@ namespace weightDetection
         auto pressureData = pressureSensor::getPressureDataDoubleByte();
         for (uint8_t index = 0; index < pressureSensor::number_of_pressure_sensors; index++) {
             features[index] = pressureData[index];
-            Serial.print(index);
-            Serial.print(": ");
-            Serial.print(pressureData[index]);
-            Serial.print("=>");
-            Serial.println(features[index]);
         }
     }
 
