@@ -3,6 +3,7 @@
 #include "eepromUtils.h"
 #include "definitions.h"
 #include "sensor/pressureSensor.h"
+#include "weight/weightData.h"
 
 namespace type
 {
@@ -30,6 +31,9 @@ namespace type
         {
             _isRightInsole = (type == Type::RIGHT_INSOLE);
             pressureSensor::updateSide(_isRightInsole);
+        }
+        else {
+            weightData::setDelay(0);
         }
     }
 

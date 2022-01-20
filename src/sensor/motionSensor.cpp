@@ -112,8 +112,8 @@ namespace motionSensor
 
         if (currentTime >= lastCalibrationUpdateTime + calibration_delay_ms)
         {
-            lastCalibrationUpdateTime = currentTime - (currentTime % calibration_delay_ms);
             updateCalibration();
+            lastCalibrationUpdateTime = currentTime - (currentTime % calibration_delay_ms);
         }
     }
 } // namespace motionSensor

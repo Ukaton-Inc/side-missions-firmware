@@ -1,0 +1,14 @@
+#N canvas 418 221 663 500 12;
+#X msg 268 230 send foo \$1;
+#X msg 259 173 disconnect;
+#X floatatom 251 288 0 0 0 0 - - -;
+#X floatatom 268 206 0 0 0 0 - - -;
+#X msg 251 76 connect 192.168.5.237 9999;
+#X obj 251 261 netsend -u -b;
+#X obj 332 299 print data;
+#X connect 0 0 5 0;
+#X connect 1 0 5 0;
+#X connect 3 0 0 0;
+#X connect 4 0 5 0;
+#X connect 5 0 2 0;
+#X connect 5 1 6 0;

@@ -306,8 +306,8 @@ namespace sensorData
         currentTime = millis();
         if (hasAtLeastOneNonzeroDelay && currentTime >= lastDataUpdateTime + min_delay_ms && (ble::isServerConnected || webSocket::isConnectedToClient()))
         {
-            lastDataUpdateTime = currentTime - (currentTime % min_delay_ms);
             updateData();
+            lastDataUpdateTime = currentTime - (currentTime % min_delay_ms);
         }
     }
 } // namespace sensorData

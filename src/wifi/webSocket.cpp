@@ -9,12 +9,15 @@
 #include "debug.h"
 #include "sensor/sensorData.h"
 #include "sensor/motionSensor.h"
+#include "weight/weightData.h"
 #include "battery.h"
 
 namespace webSocket
 {
     enum class MessageType : uint8_t
     {
+        BATTERY_LEVEL,
+
         GET_DEBUG,
         SET_DEBUG,
 
@@ -31,7 +34,10 @@ namespace webSocket
 
         SENSOR_DATA,
 
-        BATTERY_LEVEL
+        GET_WEIGHT_DATA_DELAY,
+        SET_WEIGHT_DATA_DELAY,
+
+        WEIGHT_DATA
     };
 
     AsyncWebSocket server("/ws");
@@ -57,6 +63,7 @@ namespace webSocket
         _clientMessageFlags.clear();
         ble::pServer->startAdvertising();
         sensorData::clearConfigurations();
+        weightData::setDelay(0);
         sentInitialPayload = false;
         server.enable(true);
     }
@@ -129,6 +136,23 @@ namespace webSocket
         _clientMessageFlags[MessageType::SET_SENSOR_DATA_CONFIGURATIONS] = true;
         return dataOffset;
     }
+    uint8_t onClientRequestGetWeightDataDelay(uint8_t *data, uint8_t dataOffset)
+    {
+        if (_clientMessageFlags.count(MessageType::SET_WEIGHT_DATA_DELAY) == 0)
+        {
+            _clientMessageFlags[MessageType::GET_WEIGHT_DATA_DELAY] = true;
+        }
+        return dataOffset;
+    }
+    uint8_t onClientRequestSetWeightDataDelay(uint8_t *data, uint8_t dataOffset)
+    {
+        uint16_t delay = (((uint16_t)data[dataOffset+1]) << 8) | ((uint16_t)data[dataOffset]);
+        dataOffset += sizeof(delay);
+        weightData::setDelay(delay);
+        _clientMessageFlags.erase(MessageType::GET_WEIGHT_DATA_DELAY);
+        _clientMessageFlags[MessageType::SET_WEIGHT_DATA_DELAY] = true;
+        return dataOffset;
+    }
     void _onWebSocketMessage(AsyncWebSocketClient *_client, void *arg, uint8_t *data, size_t len)
     {
         if (client == _client)
@@ -181,6 +205,12 @@ namespace webSocket
                         break;
                     case MessageType::SET_SENSOR_DATA_CONFIGURATIONS:
                         dataOffset = onClientRequestSetSensorDataConfigurations(data, dataOffset);
+                        break;
+                    case MessageType::GET_WEIGHT_DATA_DELAY:
+                        dataOffset = onClientRequestGetWeightDataDelay(data, dataOffset);
+                        break;
+                    case MessageType::SET_WEIGHT_DATA_DELAY:
+                        dataOffset = onClientRequestSetWeightDataDelay(data, dataOffset);
                         break;
                     default:
                         Serial.print("uncaught websocket message type: ");
@@ -265,6 +295,17 @@ namespace webSocket
         }
     }
 
+    unsigned long lastWeightDataUpdateTime;
+    void weightDataLoop()
+    {
+        if (lastWeightDataUpdateTime != weightData::lastDataUpdateTime)
+        {
+            lastWeightDataUpdateTime = weightData::lastDataUpdateTime;
+            _clientMessageFlags[MessageType::WEIGHT_DATA] = true;
+            shouldSendToClient = true;
+        }
+    }
+
     uint8_t _clientMessageData[7 + 1 + 1 + name::MAX__NAME_LENGTH + sizeof(motionSensor::calibration) + sizeof(sensorData::motionConfiguration) + sizeof(sensorData::pressureConfiguration) + 2 + sizeof(sensorData::motionData) + 2 + sizeof(sensorData::pressureData) + 1];
     uint8_t _clientMessageDataSize = 0;
 
@@ -292,6 +333,10 @@ namespace webSocket
 
                 switch (messageType)
                 {
+                case MessageType::BATTERY_LEVEL:
+                    // FIX LATER
+                    _clientMessageData[_clientMessageDataSize++] = 100;
+                    break;
                 case MessageType::GET_DEBUG:
                 case MessageType::SET_DEBUG:
                     _clientMessageData[_clientMessageDataSize++] = (uint8_t)debug::getEnabled();
@@ -337,10 +382,21 @@ namespace webSocket
                     _clientMessageDataSize += sensorData::pressureDataSize;
                 }
                 break;
-                case MessageType::BATTERY_LEVEL:
-                    // FIX LATER
-                    _clientMessageData[_clientMessageDataSize++] = 100;
-                    break;
+                case MessageType::GET_WEIGHT_DATA_DELAY:
+                case MessageType::SET_WEIGHT_DATA_DELAY:
+                {
+                    auto delay = weightData::getDelay();
+                    memcpy(&_clientMessageData[_clientMessageDataSize], (uint8_t *) &delay, sizeof(delay));
+                    _clientMessageDataSize += sizeof(delay);
+                }
+                break;
+                case MessageType::WEIGHT_DATA:
+                {
+                    auto weight = weightData::getWeight();
+                    memcpy(&_clientMessageData[_clientMessageDataSize], (uint8_t *) &weight, sizeof(weight));
+                    _clientMessageDataSize += sizeof(weight);
+                }
+                break;
                 default:
                     Serial.print("uncaught client message type: ");
                     Serial.println((uint8_t)messageType);
@@ -360,7 +416,6 @@ namespace webSocket
             Serial.println();
 #endif
 
-            //server.binaryAll(_clientMessageData, _clientMessageDataSize);
             server.binary(client->id(), _clientMessageData, _clientMessageDataSize);
 
             if (!sentInitialPayload)
@@ -384,6 +439,7 @@ namespace webSocket
                 batteryLevelLoop();
                 motionCalibrationLoop();
                 sensorDataLoop();
+                weightDataLoop();
             }
             messageLoop();
         }

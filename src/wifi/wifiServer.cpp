@@ -1,5 +1,6 @@
 #include "wifiServer.h"
 #include "webSocket.h"
+#include "udp.h"
 
 namespace wifiServer
 {
@@ -16,6 +17,7 @@ namespace wifiServer
         if (_isConnected)
         {
             server.begin();
+            udp::listen();
         }
         else
         {
@@ -47,6 +49,7 @@ namespace wifiServer
         
         if (_isConnected) {
             webSocket::loop();
+            udp::loop();
         }
     }
 } // namespace wifiServer

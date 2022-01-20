@@ -11,6 +11,7 @@
 #include "moveToWake.h"
 #include "sensor/pressureSensor.h"
 #include "sensor/sensorData.h"
+#include "weight/weightData.h"
 
 void setup()
 {
@@ -36,6 +37,7 @@ void loop()
     motionSensor::loop();
     moveToWake::loop();
     sensorData::loop();
+    weightData::loop();
     wifi::loop();
     ble::loop();
 }

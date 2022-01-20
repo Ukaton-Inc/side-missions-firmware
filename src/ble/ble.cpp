@@ -7,6 +7,7 @@
 #include "information/bleName.h"
 #include "sensor/bleMotionCalibration.h"
 #include "sensor/bleSensorData.h"
+#include "weight/bleWeightData.h"
 #include "bleBattery.h"
 #include "wifi/bleWifi.h"
 
@@ -35,7 +36,8 @@ namespace ble
             lastTimeConnected = millis();
             isServerConnected = false;
             Serial.println("disconnected via ble");
-            //bleSensorData::clearConfigurations();
+            bleSensorData::clearConfigurations();
+            bleWeightData::clearDelay();
         }
     };
 
@@ -56,6 +58,7 @@ namespace ble
         bleName::setup();
         bleMotionCalibration::setup();
         bleSensorData::setup();
+        bleWeightData::setup();
         bleWifi::setup();
         bleBattery::setup();
 
@@ -92,6 +95,7 @@ namespace ble
         if (isServerConnected) {
             bleMotionCalibration::loop();
             bleSensorData::loop();
+            bleWeightData::loop();
             bleBattery::loop();
             bleWifi::loop();
         }
