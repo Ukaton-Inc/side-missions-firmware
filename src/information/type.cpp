@@ -1,6 +1,6 @@
 #include "type.h"
 #include "definitions.h"
-#include "eepromUtils.h"
+#include <Preferences.h>
 #include "definitions.h"
 #include "sensor/pressureSensor.h"
 #include "weight/weightData.h"
@@ -10,19 +10,6 @@ namespace type
     Type type = IS_INSOLE ? (IS_RIGHT_INSOLE ? Type::RIGHT_INSOLE : Type::LEFT_INSOLE) : Type::MOTION_MODULE;
     bool _isInsole = false;
     bool _isRightInsole = false;
-
-    uint16_t eepromAddress;
-    void loadFromEEPROM()
-    {
-        type = (Type)EEPROM.read(eepromAddress);
-    }
-    void saveToEEPROM()
-    {
-        Serial.print("Saving type to EEPROM: ");
-        Serial.println((uint8_t)type);
-        EEPROM.write(eepromAddress, (uint8_t)type);
-        EEPROM.commit();
-    }
 
     void onTypeUpdate()
     {
@@ -37,19 +24,11 @@ namespace type
         }
     }
 
+    Preferences preferences;
     void setup()
     {
-        eepromAddress = eepromUtils::reserveSpace(sizeof(type));
-
-        if (eepromUtils::firstInitialized)
-        {
-            saveToEEPROM();
-        }
-        else
-        {
-            loadFromEEPROM();
-        }
-
+        preferences.begin("type");
+        type = (Type) preferences.getUChar("type", (uint8_t) type);
         onTypeUpdate();
     }
 
@@ -68,7 +47,7 @@ namespace type
     void setType(Type newType)
     {
         type = newType;
-        saveToEEPROM();
+        preferences.putUChar("type", (uint8_t) type);
         Serial.print("changed device type to: ");
         Serial.println((uint8_t)type);
         onTypeUpdate();

@@ -1,11 +1,12 @@
 #include "definitions.h"
 #include "motionSensor.h"
-#include "eepromUtils.h"
+#include <Preferences.h>
 #include <lwipopts.h>
 
 namespace motionSensor
 {
     Adafruit_BNO055 bno = Adafruit_BNO055(-1, 0x28);
+    Preferences preferences;
 
     bool isValidDataType(DataType dataType)
     {
@@ -14,26 +15,6 @@ namespace motionSensor
 
     adafruit_bno055_offsets_t sensorOffsets;
     uint8_t calibration[(uint8_t)CalibrationType::COUNT];
-    
-    uint16_t sensorOffsetsEepromAddress;
-    void loadFromEEPROM()
-    {
-        EEPROM.get(sensorOffsetsEepromAddress, sensorOffsets);
-        bno.setSensorOffsets(sensorOffsets);
-    }
-    bool saveToEEPROM()
-    {
-        bool readSuccessful = bno.getSensorOffsets(sensorOffsets);
-        if (readSuccessful)
-        {
-            EEPROM.put(sensorOffsetsEepromAddress, sensorOffsets);
-            return EEPROM.commit();
-        }
-        else
-        {
-            return readSuccessful;
-        }
-    }
 
     bool wroteFullCalibration = false;
     void updateCalibration()
@@ -41,9 +22,10 @@ namespace motionSensor
         bno.getCalibration(&calibration[0], &calibration[1], &calibration[2], &calibration[3]);
         if (bno.isFullyCalibrated() && !wroteFullCalibration)
         {
-            bool saveSuccessful = saveToEEPROM();
-            if (saveSuccessful)
+            bool readSuccessful = bno.getSensorOffsets(sensorOffsets);
+            if (readSuccessful)
             {
+                preferences.putBytes("sensorOffsets", (void *) &sensorOffsets, sizeof(sensorOffsets));
                 wroteFullCalibration = true;
             }
         }
@@ -64,6 +46,7 @@ namespace motionSensor
 
     void setup()
     {
+        preferences.begin("motionSensor");
 #if DEBUG
         Serial.println("motion setup...");
 #endif
@@ -73,14 +56,9 @@ namespace motionSensor
         }
         delay(1000);
 
-        sensorOffsetsEepromAddress = eepromUtils::reserveSpace(sizeof(adafruit_bno055_offsets_t));
-        if (eepromUtils::firstInitialized)
-        {
-            saveToEEPROM();
-        }
-        else
-        {
-            loadFromEEPROM();
+        if (preferences.isKey("sensorOffsets")) {
+            preferences.getBytes("sensorOffsets", (void *) &sensorOffsets, sizeof(sensorOffsets));
+            bno.setSensorOffsets(sensorOffsets);
         }
 
         bno.setExtCrystalUse(false);

@@ -1,7 +1,6 @@
 #include <Arduino.h>
 
 #include "definitions.h"
-#include "eepromUtils.h"
 #include "ble/ble.h"
 #include "wifi/wifi.h"
 #include "information/name.h"
@@ -22,7 +21,6 @@ void setup()
     Serial.println("setup");
 #endif
 
-    eepromUtils::setup();
     name::setup();
     type::setup();
     motionSensor::setup();

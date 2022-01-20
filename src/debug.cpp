@@ -1,34 +1,16 @@
 #include "debug.h"
-#include "eepromUtils.h"
+#include <Preferences.h>
 #include "definitions.h"
 
 namespace debug
 {
-    const uint8_t MAX_NAME_LENGTH = 30;
-
     bool isEnabled = DEBUG;
-    uint16_t eepromAddress;
 
-    void loadFromEEPROM() {
-        isEnabled = EEPROM.readBool(eepromAddress);
-    }
-    void saveToEEPROM() {
-        Serial.print("Saving debugging enabled to EEPROM: ");
-        Serial.println(isEnabled);
-        EEPROM.writeBool(eepromAddress, isEnabled);
-        EEPROM.commit();
-    }
-
+    Preferences preferences;
     void setup()
     {
-        eepromAddress = eepromUtils::reserveSpace(sizeof(isEnabled));
-
-        if (eepromUtils::firstInitialized) {
-            saveToEEPROM();
-        }
-        else {
-            loadFromEEPROM();
-        }
+        preferences.begin("debug");
+        isEnabled = preferences.getBool("isEnabled", isEnabled);
     }
 
     bool getEnabled() {
@@ -37,7 +19,7 @@ namespace debug
     void setEnabled(bool _isEnabled)
     {
         isEnabled = _isEnabled;
-        saveToEEPROM();
+        preferences.putBool("isEnabled", isEnabled);
         Serial.print("changed isEnabled to: ");
         Serial.println(isEnabled);
     }

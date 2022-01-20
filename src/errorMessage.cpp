@@ -1,5 +1,4 @@
 #include "errorMessage.h"
-#include "eepromUtils.h"
 #include "ble/bleErrorMessage.h"
 
 namespace errorMessage

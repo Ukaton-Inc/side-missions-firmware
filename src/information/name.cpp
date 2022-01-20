@@ -1,5 +1,5 @@
 #include "name.h"
-#include "eepromUtils.h"
+#include <Preferences.h>
 #include "definitions.h"
 #include "services/gap/ble_svc_gap.h"
 #include <WiFi.h>
@@ -7,27 +7,13 @@
 namespace name
 {
     std::string name = DEFAUlT_NAME;
-    uint16_t eepromAddress;
 
-    void loadFromEEPROM() {
-        name = EEPROM.readString(eepromAddress).c_str();
-    }
-    void saveToEEPROM() {
-        Serial.print("Saving name to EEPROM: ");
-        Serial.println(name.c_str());
-        EEPROM.writeString(eepromAddress, name.substr(0, min((const uint8_t)name.length(), MAX__NAME_LENGTH)).c_str());
-        EEPROM.commit();
-    }
-
+    Preferences preferences;
     void setup()
     {
-        eepromAddress = eepromUtils::reserveSpace(MAX__NAME_LENGTH);
-
-        if (eepromUtils::firstInitialized) {
-            saveToEEPROM();
-        }
-        else {
-            loadFromEEPROM();
+        preferences.begin("name");
+        if (preferences.isKey("name")) {
+            name = preferences.getString("name").c_str();
         }
 
         Serial.print("name: ");
@@ -44,7 +30,7 @@ namespace name
     {
         if (length <= MAX__NAME_LENGTH) {
             name.assign(newName, length);
-            saveToEEPROM();
+            preferences.putString("name", name.c_str());
             Serial.print("changed name to: ");
             Serial.println(name.c_str());
             ble_svc_gap_device_name_set(name.c_str());
