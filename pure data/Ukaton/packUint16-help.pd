@@ -1,0 +1,19 @@
+#N canvas 513 178 193 124 12;
+#X obj 76 12 tgl 15 0 empty empty big_endian? 17 7 0 10 -262144 -1
+-1 1 1;
+#X text 86 38 b big endian;
+#X obj 98 64 parseUint16;
+#X floatatom 9 10 5 0 0 0 - - -;
+#X floatatom 98 91 5 0 0 0 - - -;
+#X obj 9 36 packUint16;
+#X obj 9 64 unpack f f;
+#X floatatom 9 91 5 0 0 0 - - -;
+#X floatatom 51 91 5 0 0 0 - - -;
+#X connect 0 0 2 1;
+#X connect 0 0 5 1;
+#X connect 2 0 4 0;
+#X connect 3 0 5 0;
+#X connect 5 0 2 0;
+#X connect 5 0 6 0;
+#X connect 6 0 7 0;
+#X connect 6 1 8 0;

@@ -1,0 +1,10 @@
+#N canvas 343 397 248 91 12;
+#X obj 7 61 print euler;
+#X text 197 6 order;
+#X obj 7 34 quaternionToEuler XYZ;
+#X msg 163 7 XYZ;
+#X text 67 7 [w x y z];
+#X msg 6 7 1 0 0 0;
+#X connect 2 0 0 0;
+#X connect 3 0 2 1;
+#X connect 5 0 2 0;

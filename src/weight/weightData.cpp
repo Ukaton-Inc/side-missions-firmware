@@ -13,8 +13,10 @@ namespace weightData
     void setDelay(uint16_t _delay)
     {
         delay = _delay - (_delay % min_delay_ms);
+#if DEBUG
         Serial.print("updating weight delay: ");
         Serial.println(delay);
+#endif
     }
     uint16_t getDelay()
     {
@@ -22,7 +24,8 @@ namespace weightData
     }
 
     float weight;
-    float getWeight() {
+    float getWeight()
+    {
         return weight;
     }
 

@@ -1,0 +1,14 @@
+#N canvas 319 251 276 136 12;
+#X obj 101 107 print rest;
+#X obj 6 107 print vector;
+#X obj 133 31 tgl 15 0 empty empty big_endian? 17 7 0 10 -262144 -1
+-1 0 1;
+#X msg 6 29 1 0 2 0 3 0 4 0;
+#X text 132 54 b for big endian;
+#X text 131 74 q for quaternion;
+#X text 7 6 3 or 4 Uint16s;
+#X obj 6 55 parseVector q;
+#X connect 2 0 7 1;
+#X connect 3 0 7 0;
+#X connect 7 0 1 0;
+#X connect 7 1 0 0;

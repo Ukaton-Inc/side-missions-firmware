@@ -7,10 +7,9 @@
 
 namespace udp
 {
-    extern AsyncUDP udp;
-
     void listen(uint16_t port = 9999);
     void loop();
+    bool hasListener();
 } // namespace udp
 
 #endif // _UDP_

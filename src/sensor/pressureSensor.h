@@ -26,7 +26,7 @@ namespace pressureSensor
     {
         SINGLE_BYTE = sizeof(uint8_t) * 16,
         DOUBLE_BYTE = sizeof(uint16_t) * 16,
-        CENTER_OF_MASS = 2 * sizeof(double),
+        CENTER_OF_MASS = 2 * sizeof(float),
         MASS = sizeof(uint32_t),
         HEEL_TO_TOE = sizeof(double),
         TOTAL = (sizeof(uint8_t) * 16) + (sizeof(uint16_t) * 16) + (2 * sizeof(double)) + sizeof(uint32_t) + sizeof(uint32_t)

@@ -1,0 +1,14 @@
+#N canvas 508 251 274 114 12;
+#X obj 10 8 inlet;
+#X obj 10 84 outlet;
+#X obj 10 34 quaternionToMatrix4;
+#X obj 159 8 inlet;
+#X obj 202 8 loadbang;
+#X obj 159 31 symbol \$1;
+#X obj 10 60 matrix4ToEuler;
+#X connect 0 0 2 0;
+#X connect 2 0 6 0;
+#X connect 3 0 5 0;
+#X connect 4 0 5 0;
+#X connect 5 0 6 1;
+#X connect 6 0 1 0;

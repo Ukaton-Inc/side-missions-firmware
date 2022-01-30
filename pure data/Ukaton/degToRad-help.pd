@@ -1,0 +1,6 @@
+#N canvas 568 188 95 107 12;
+#X floatatom 6 69 5 0 0 0 - - -;
+#X floatatom 6 13 5 0 0 0 - - -;
+#X obj 6 41 degToRad;
+#X connect 1 0 2 0;
+#X connect 2 0 0 0;

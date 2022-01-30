@@ -1,0 +1,9 @@
+#N canvas 400 459 314 93 12;
+#X obj 6 62 print multiplied_quaternion;
+#X obj 6 35 multiplyQuaternions 1 0 0 0;
+#X msg 6 7 1 2 3 4;
+#X msg 143 11 4 3 2 1;
+#X text 207 12 [w \, x \, y \, z];
+#X connect 1 0 0 0;
+#X connect 2 0 1 0;
+#X connect 3 0 1 1;

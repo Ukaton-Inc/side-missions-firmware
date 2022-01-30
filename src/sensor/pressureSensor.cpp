@@ -66,7 +66,7 @@ namespace pressureSensor
          {1, 0, 0, 1},
          {0, 0, 0, 1}}};
 
-    double sensorPositions[number_of_pressure_sensors][2] = {
+    double _sensorPositions[number_of_pressure_sensors][2] = {
         {59.55, 32.3},
         {33.1, 42.15},
 
@@ -89,9 +89,21 @@ namespace pressureSensor
 
         {43.5, 242.0},
         {18.55, 242.1}};
+    void normalizeSensorPositions() {
+        for (uint8_t i = 0; i < number_of_pressure_sensors; i++)
+        {
+            _sensorPositions[i][0] /= 93.257;
+            _sensorPositions[i][1] /= 265.069;
+        }
+    }
+    double sensorPositions[number_of_pressure_sensors][2]{0};
 
+    bool updatedSideAtLeastOnce = false;
     void setup()
     {
+        normalizeSensorPositions();
+        updatedSideAtLeastOnce = false;
+
         if (type::isInsole()) {
             updateSide(type::isRightInsole());
         }
@@ -103,18 +115,24 @@ namespace pressureSensor
             pinMode(configurationPins[i], OUTPUT);
         }
     }
+
     void updateSide(bool _isRightInsole)
-    {        
+    {
+        if (updatedSideAtLeastOnce && isRightInsole == _isRightInsole) {
+            return;
+        }
+        
+        updatedSideAtLeastOnce = true;
         isRightInsole = _isRightInsole;
 
         for (uint8_t i = 0; i < number_of_pressure_sensors; i++)
         {
-            sensorPositions[i][0] /= 93.257;
+            sensorPositions[i][0] = _sensorPositions[i][0];
+            sensorPositions[i][1] = _sensorPositions[i][1];
             if (isRightInsole)
             {
                 sensorPositions[i][0] = 1 - sensorPositions[i][0];
             }
-            sensorPositions[i][1] /= 265.069;
         }
 
         setupPins();
@@ -172,8 +190,8 @@ namespace pressureSensor
             {
                 for (uint8_t index = 0; index < number_of_pressure_sensors; index++)
                 {
-                    centerOfMass[0] += (float)(sensorPositions[index][0] * (float)pressureDataDoubleByte[index]) / (float)mass;
-                    centerOfMass[1] += (float)(sensorPositions[index][1] * (float)pressureDataDoubleByte[index]) / (float)mass;
+                    centerOfMass[0] += ((float)sensorPositions[index][0] * (float)pressureDataDoubleByte[index]) / (float)mass;
+                    centerOfMass[1] += ((float)sensorPositions[index][1] * (float)pressureDataDoubleByte[index]) / (float)mass;
                 }
             }
 
@@ -207,7 +225,7 @@ namespace pressureSensor
             {
                 for (uint8_t index = 0; index < number_of_pressure_sensors; index++)
                 {
-                    heelToToe += (double)(sensorPositions[index][1] * (double)pressureDataDoubleByte[index]) / (double)mass;
+                    heelToToe += (sensorPositions[index][1] * (double)pressureDataDoubleByte[index]) / (double)mass;
                 }
             }
 

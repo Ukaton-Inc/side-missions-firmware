@@ -4,6 +4,7 @@
 
 #include "wifi/webSocket.h"
 #include "ble/ble.h"
+#include "wifi/udp.h"
 
 namespace sensorData
 {
@@ -304,7 +305,7 @@ namespace sensorData
     void loop()
     {
         currentTime = millis();
-        if (hasAtLeastOneNonzeroDelay && currentTime >= lastDataUpdateTime + min_delay_ms && (ble::isServerConnected || webSocket::isConnectedToClient()))
+        if (hasAtLeastOneNonzeroDelay && currentTime >= lastDataUpdateTime + min_delay_ms && (ble::isServerConnected || webSocket::isConnectedToClient() || udp::hasListener()))
         {
             updateData();
             lastDataUpdateTime = currentTime - (currentTime % min_delay_ms);

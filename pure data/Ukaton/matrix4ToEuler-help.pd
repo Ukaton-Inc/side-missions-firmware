@@ -1,0 +1,9 @@
+#N canvas 578 54 355 96 12;
+#X obj 7 62 print euler;
+#X text 243 9 order;
+#X msg 288 9 YXZ;
+#X obj 7 36 matrix4ToEuler YXZ;
+#X msg 6 9 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1;
+#X connect 2 0 3 1;
+#X connect 3 0 0 0;
+#X connect 4 0 3 0;
