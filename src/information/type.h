@@ -10,7 +10,8 @@ namespace type
     {
         MOTION_MODULE,
         LEFT_INSOLE,
-        RIGHT_INSOLE
+        RIGHT_INSOLE,
+        COUNT
     };
     
     void setup();

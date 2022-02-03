@@ -28,7 +28,7 @@ namespace name
     }
     void setName(const char *newName, size_t length)
     {
-        if (length <= MAX__NAME_LENGTH) {
+        if (length <= MAX_NAME_LENGTH) {
             name.assign(newName, length);
             preferences.putString("name", name.c_str());
             Serial.print("changed name to: ");

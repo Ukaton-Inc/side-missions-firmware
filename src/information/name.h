@@ -6,7 +6,7 @@
 
 namespace name
 {
-    const uint8_t MAX__NAME_LENGTH = 30;
+    const uint8_t MAX_NAME_LENGTH = 30;
     void setup();
 
     const std::string *getName();

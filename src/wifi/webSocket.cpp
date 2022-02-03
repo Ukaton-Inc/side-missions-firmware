@@ -308,7 +308,7 @@ namespace webSocket
 
     // [...[messageType, payloadSize?, payload]], with payloadSize for variable payloads (name) excluding sensorData
     // sensorData is [messageType, timestamp, motionPayloadSize, motionPayload, pressurePayloadSize, pressurePayload]
-    uint8_t _clientMessageData[1 + sizeof(uint8_t) + 1 + sizeof(bool) + 1 + sizeof(type::Type) + 2 + name::MAX__NAME_LENGTH + 1 + sizeof(motionSensor::calibration) + 1 + sizeof(sensorData::motionConfiguration) + 1 + sizeof(sensorData::pressureConfiguration) + 1 + sizeof(uint16_t) + 2 + sizeof(sensorData::motionData) + 2 + sizeof(sensorData::pressureData) + 1 + sizeof(uint16_t) + 1 + sizeof(float)];
+    uint8_t _clientMessageData[1 + sizeof(uint8_t) + 1 + sizeof(bool) + 1 + sizeof(type::Type) + 2 + name::MAX_NAME_LENGTH + 1 + sizeof(motionSensor::calibration) + 1 + sizeof(sensorData::motionConfiguration) + 1 + sizeof(sensorData::pressureConfiguration) + 1 + sizeof(uint16_t) + 2 + sizeof(sensorData::motionData) + 2 + sizeof(sensorData::pressureData) + 1 + sizeof(uint16_t) + 1 + sizeof(float)];
     uint8_t _clientMessageDataSize = 0;
 
     unsigned long lastTimeServerCleanedUpClients = 0;

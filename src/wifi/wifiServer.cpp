@@ -1,6 +1,7 @@
 #include "wifiServer.h"
 #include "webSocket.h"
 #include "udp.h"
+#include "osc.h"
 
 namespace wifiServer
 {
@@ -16,11 +17,14 @@ namespace wifiServer
     {
         if (_isConnected)
         {
+            Serial.println("connected to the internet");
             server.begin();
             udp::listen();
+            osc::listen();
         }
         else
         {
+            Serial.println("not connected to the internet");
             server.end();
         }
     }
@@ -50,6 +54,7 @@ namespace wifiServer
         if (_isConnected) {
             webSocket::loop();
             udp::loop();
+            osc::loop();
         }
     }
 } // namespace wifiServer
