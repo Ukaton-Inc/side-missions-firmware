@@ -809,11 +809,6 @@ namespace osc
             message.flush();
             bundleOUT.empty();
 
-            Serial.print("[");
-            Serial.print(currentTime);
-            Serial.print("]: ");
-            Serial.println("sent!");
-
             shouldSendToListener = false;
             _listenerMessageFlags.clear();
         }
