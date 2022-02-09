@@ -281,23 +281,11 @@ namespace osc
                     case SensorType::PRESSURE:
                         if (stringToPressureSensorDataType.count(sensorDataTypeString))
                         {
-#if DEBUG
-                            Serial.print("sensor data type: ");
-                            Serial.println(sensorDataTypeString);
-#endif
-
                             auto pressureSensorDataType = stringToPressureSensorDataType[sensorDataTypeString];
-#if DEBUG
-                            Serial.print("sensor data type: ");
-                            Serial.println((uint8_t)pressureSensorDataType);
-#endif
                             if (pressureDataRates[(uint8_t)pressureSensorDataType] != rate)
                             {
                                 pressureDataRates[(uint8_t)pressureSensorDataType] = rate;
-#if DEBUG
-                                Serial.print("rate: ");
-                                Serial.println(pressureDataRates[(uint8_t)pressureSensorDataType]);
-#endif
+
                                 _updatedPressureDataRateFlags[pressureSensorDataType] = true;
                                 updatedRate = true;
                             }
