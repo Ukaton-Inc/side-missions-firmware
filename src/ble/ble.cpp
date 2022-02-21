@@ -10,6 +10,7 @@
 #include "weight/bleWeightData.h"
 #include "bleBattery.h"
 #include "wifi/bleWifi.h"
+#include "BLEPeer.h"
 
 namespace ble
 {
@@ -62,6 +63,8 @@ namespace ble
         bleWifi::setup();
         bleBattery::setup();
 
+        BLEPeer::setup();
+
         start();
     }
 
@@ -88,7 +91,7 @@ namespace ble
     {
         pService->start();
         pServer->startAdvertising();
-        Serial.println("starting ble...");
+        Serial.println("started ble");
     }
 
     void loop() {
@@ -98,6 +101,7 @@ namespace ble
             bleWeightData::loop();
             bleBattery::loop();
             bleWifi::loop();
+            BLEPeer::loop();
         }
     }
 } // namespace ble
