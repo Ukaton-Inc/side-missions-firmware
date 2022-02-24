@@ -13,7 +13,6 @@ namespace sensorData
         return sensorType < SensorType::COUNT;
     }
 
-    const uint16_t min_delay_ms = 20;
     uint16_t motionConfiguration[(uint8_t)motionSensor::DataType::COUNT]{0};
     uint16_t pressureConfiguration[(uint8_t)pressureSensor::DataType::COUNT]{0};
     bool hasAtLeastOneNonzeroDelay = false;
@@ -103,17 +102,16 @@ namespace sensorData
         while (offset < size)
         {
             const auto sensorType = (SensorType)newConfigurations[offset++];
-            if (!isValidSensorType(sensorType))
+            if (isValidSensorType(sensorType))
             {
-#if DEBUG
-                Serial.print("invalid sensor type: ");
-                Serial.println((uint8_t)sensorType);
-#endif
+                const uint8_t _size = newConfigurations[offset++];
+                setConfiguration(&newConfigurations[offset], _size, sensorType);
+                offset += _size;
+            }
+            else {
+                Serial.printf("invalid sensor type: %d\n", (uint8_t) sensorType);
                 break;
             }
-            const uint8_t _size = newConfigurations[offset++];
-            setConfiguration(&newConfigurations[offset], _size, sensorType);
-            offset += _size;
         }
 
 #if DEBUG

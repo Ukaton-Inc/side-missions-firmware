@@ -20,7 +20,7 @@ private:
     static BLEScan* pBLEScan;
     static bool shouldScan;
     static void updateShouldScan();
-    static constexpr uint16_t check_scan_interval_ms = 2000;
+    static constexpr uint16_t check_scan_interval_ms = 1000;
     static unsigned long lastScanCheck;
     static void checkScan();
     class AdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
@@ -36,13 +36,13 @@ private:
     Preferences preferences;
 
 private:
-    std::string name;
+    std::string _name;
     bool autoConnect = false;
     NimBLEAdvertisedDevice* pAdvertisedDevice = nullptr;
     bool foundDevice = false;
     NimBLEClient* pClient = nullptr;
     bool connectToDevice();
-    bool isConnected = false;
+    bool isConnected();
 
 private:
     NimBLERemoteService* pRemoteService = nullptr;
@@ -51,12 +51,23 @@ private:
     NimBLERemoteCharacteristic* pRemoteSensorConfigurationCharacteristic = nullptr;
     NimBLERemoteCharacteristic* pRemoteSensorDataCharacteristic = nullptr;
     static void onRemoteSensorDataCharacteristicNotification(NimBLERemoteCharacteristic* pRemoteCharacteristic, uint8_t* pData, size_t length, bool isNotify);
-    static void _onRemoteSensorDataCharacteristicNotification(NimBLERemoteCharacteristic* pRemoteCharacteristic, uint8_t* pData, size_t length, bool isNotify);
+    void _onRemoteSensorDataCharacteristicNotification(NimBLERemoteCharacteristic* pRemoteCharacteristic, uint8_t* pData, size_t length, bool isNotify);
 
 private:
-    type::Type type = type::Type::MOTION_MODULE;
+    type::Type _type = type::Type::MOTION_MODULE;
+    bool isValidSensorType(sensorData::SensorType);
     uint8_t sensorConfiguration[sizeof(sensorData::motionConfiguration) + sizeof(sensorData::pressureConfiguration)];
+    uint16_t motionConfiguration[(uint8_t) motionSensor::DataType::COUNT];
+    uint16_t pressureConfiguration[(uint8_t) pressureSensor::DataType::COUNT];
     uint8_t sensorData[2 + sizeof(sensorData::motionData) + 2 + sizeof(sensorData::pressureData)];
+    uint8_t sensorDataSize = 0;
+
+private:
+    void setConfigurations(const uint8_t *newConfigurations, uint8_t size);
+    void setConfiguration(const uint8_t *newConfiguration, uint8_t size, sensorData::SensorType sensorType);
+    void clearConfiguration(sensorData::SensorType sensorType);
+    void clearConfigurations();
+
 
 private:
     void formatBLECharacteristicUUID(char *buffer, uint8_t value);
@@ -69,17 +80,42 @@ private:
     BLECharacteristic *pTypeCharacteristic = nullptr;
     BLECharacteristic *pSensorConfigurationCharacteristic = nullptr;
     BLECharacteristic *pSensorDataCharacteristic = nullptr;
+
+    bool shouldChangeName = false;
     void onNameWrite();
+    void changeName();
+
+    bool shouldDisconnect = false;
     void onConnectWrite();
+
+    bool shouldChangeType = false;
+    type::Type typeToChangeTo;
     void onTypeWrite();
+    void changeType();
+
+    bool shouldChangeSensorConfiguration = false;
+    std::string receivedConfiguration;
     void onSensorConfigurationWrite();
+    void changeSensorConfiguration();
+
+    bool shouldNotifySensorData = false;
+
+    void notifySensorData();
 
 public:
     void onWrite(BLECharacteristic *pCharacteristic);
+    void onSubscribe(NimBLECharacteristic* pCharacteristic, ble_gap_conn_desc* desc, uint16_t subValue);
 
 public:
     void onConnect(NimBLEClient* pClient);
     void onDisconnect(NimBLEClient* pClient);
+    void updateIsConnectedCharacteristic(bool notify = true);
+    bool onConnParamsUpdateRequest(NimBLEClient *pClient, const ble_gap_upd_params *params);
+
+public:
+    void disconnect();
+    static void onServerConnect();
+    static void onServerDisconnect();
 
 public:
     static void setup();

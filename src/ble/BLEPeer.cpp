@@ -9,12 +9,14 @@ BLEPeer BLEPeer::peers[NIMBLE_MAX_CONNECTIONS];
 BLEScan *BLEPeer::pBLEScan;
 void BLEPeer::AdvertisedDeviceCallbacks::onResult(NimBLEAdvertisedDevice *advertisedDevice)
 {
-    if (advertisedDevice->getServiceUUID() == ble::pService->getUUID()) {
+    if (advertisedDevice->getServiceUUID() == ble::pService->getUUID())
+    {
         Serial.printf("found device \"%s\"\n", advertisedDevice->getName().c_str());
 
         for (uint8_t index = 0; index < NIMBLE_MAX_CONNECTIONS; index++)
         {
-            if (peers[index].autoConnect && (peers[index].pClient == nullptr || !peers[index].pClient->isConnected()) && peers[index].name == advertisedDevice->getName()) {
+            if (peers[index].autoConnect && (peers[index].pClient == nullptr || !peers[index].pClient->isConnected()) && peers[index]._name == advertisedDevice->getName())
+            {
                 peers[index].pAdvertisedDevice = advertisedDevice;
                 peers[index].foundDevice = true;
                 break;
@@ -23,13 +25,97 @@ void BLEPeer::AdvertisedDeviceCallbacks::onResult(NimBLEAdvertisedDevice *advert
     }
 }
 
+void BLEPeer::setConfigurations(const uint8_t *newConfigurations, uint8_t size)
+{
+    uint8_t offset = 0;
+    while (offset < size)
+    {
+        const auto sensorType = (sensorData::SensorType)newConfigurations[offset++];
+        if (sensorData::isValidSensorType(sensorType))
+        {
+            const uint8_t _size = newConfigurations[offset++];
+            setConfiguration(&newConfigurations[offset], _size, sensorType);
+            offset += _size;
+        }
+        else {
+            Serial.printf("invalid sensor type: %d\n", (uint8_t) sensorType);
+            break;
+        }
+    }
+
+    uint8_t _offset = 0;
+    memcpy(&sensorConfiguration[_offset], motionConfiguration, sizeof(motionConfiguration));
+    _offset += sizeof(motionConfiguration);
+    memcpy(&sensorConfiguration[_offset], pressureConfiguration, sizeof(pressureConfiguration));
+    _offset += sizeof(pressureConfiguration);
+
+    pSensorConfigurationCharacteristic->setValue((uint8_t *) sensorConfiguration, sizeof(sensorConfiguration));
+}
+void BLEPeer::setConfiguration(const uint8_t *newConfiguration, uint8_t size, sensorData::SensorType sensorType)
+{
+    for (uint8_t offset = 0; offset < size; offset += 3)
+    {
+        auto sensorDataTypeIndex = newConfiguration[offset];
+        uint16_t delay = ((uint16_t)newConfiguration[offset + 2] << 8) | (uint16_t)newConfiguration[offset + 1];
+        delay -= (delay % sensorData::min_delay_ms);
+
+        switch (sensorType)
+        {
+        case sensorData::SensorType::MOTION:
+            if (motionSensor::isValidDataType((motionSensor::DataType)sensorDataTypeIndex))
+            {
+                motionConfiguration[sensorDataTypeIndex] = delay;
+            }
+            break;
+        case sensorData::SensorType::PRESSURE:
+            if (pressureSensor::isValidDataType((pressureSensor::DataType)sensorDataTypeIndex))
+            {
+                pressureConfiguration[sensorDataTypeIndex] = delay;
+            }
+            break;
+        default:
+            break;
+        }
+    }
+
+    if (sensorType == sensorData::SensorType::PRESSURE)
+    {
+        if (pressureConfiguration[(uint8_t)pressureSensor::DataType::SINGLE_BYTE] > 0 && pressureConfiguration[(uint8_t)pressureSensor::DataType::DOUBLE_BYTE] > 0)
+        {
+            pressureConfiguration[(uint8_t)pressureSensor::DataType::SINGLE_BYTE] = 0;
+        }
+    }
+}
+void BLEPeer::clearConfigurations()
+{
+    for (uint8_t index = 0; index < (uint8_t)sensorData::SensorType::COUNT; index++)
+    {
+        auto sensorType = (sensorData::SensorType)index;
+        clearConfiguration(sensorType);
+    }
+}
+void BLEPeer::clearConfiguration(sensorData::SensorType sensorType)
+{
+    switch (sensorType)
+    {
+    case sensorData::SensorType::MOTION:
+        memset(motionConfiguration, 0, sizeof(motionConfiguration));
+        break;
+    case sensorData::SensorType::PRESSURE:
+        memset(pressureConfiguration, 0, sizeof(pressureConfiguration));
+        break;
+    default:
+        break;
+    }
+}
+
 void BLEPeer::formatBLECharacteristicUUID(char *uuidBuffer, uint8_t value)
 {
     snprintf(uuidBuffer, BLE_UUID_LENGTH + 1, "%s%s%d%d%s", UUID_PREFIX, BLE_PEER_UUID_PREFIX, index, value, UUID_SUFFIX);
 }
-void BLEPeer::formatBLECharacteristicName(char *nameBuffer, const char *name)
+void BLEPeer::formatBLECharacteristicName(char *nameBuffer, const char *_name)
 {
-    snprintf(nameBuffer, MAX_BLE_ATTRIBUTE_LENGTH + 1, "peer #%d %s", index, name);
+    snprintf(nameBuffer, MAX_BLE_ATTRIBUTE_LENGTH + 1, "peer #%d %s", index, _name);
 }
 
 void BLEPeer::setup()
@@ -61,9 +147,9 @@ void BLEPeer::_setup(uint8_t _index)
     pNameCharacteristic = ble::createCharacteristic(uuidBuffer, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE, nameBuffer);
     if (preferences.isKey("name"))
     {
-        name = preferences.getString("name").c_str();
+        _name = preferences.getString("name").c_str();
     }
-    pNameCharacteristic->setValue(name);
+    pNameCharacteristic->setValue(_name);
     pNameCharacteristic->setCallbacks(this);
 
     formatBLECharacteristicUUID(uuidBuffer, 1);
@@ -79,12 +165,12 @@ void BLEPeer::_setup(uint8_t _index)
     formatBLECharacteristicUUID(uuidBuffer, 2);
     formatBLECharacteristicName(nameBuffer, "isConnected");
     pIsConnectedCharacteristic = ble::createCharacteristic(uuidBuffer, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY, nameBuffer);
-    pIsConnectedCharacteristic->setValue((uint8_t *)&isConnected, 1);
+    updateIsConnectedCharacteristic(false);
 
     formatBLECharacteristicUUID(uuidBuffer, 3);
     formatBLECharacteristicName(nameBuffer, "type");
     pTypeCharacteristic = ble::createCharacteristic(uuidBuffer, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE, nameBuffer);
-    pTypeCharacteristic->setValue((uint8_t *)&type, 1);
+    pTypeCharacteristic->setValue((uint8_t *)&_type, 1);
     pTypeCharacteristic->setCallbacks(this);
 
     formatBLECharacteristicUUID(uuidBuffer, 4);
@@ -131,51 +217,97 @@ BLEPeer::~BLEPeer()
     }
 }
 
-void BLEPeer::onNameWrite() {
-    auto _name = pNameCharacteristic->getValue(); 
-    if (_name.length() <= name::MAX_NAME_LENGTH) {
-        name = _name;
-        preferences.putString("name", name.c_str());
+void BLEPeer::onNameWrite()
+{
+    auto __name = pNameCharacteristic->getValue();
+    if (__name.length() <= name::MAX_NAME_LENGTH)
+    {
+        _name = __name;
+        preferences.putString("name", _name.c_str());
 
         Serial.print("updated name to: ");
-        Serial.println(name.c_str());
+        Serial.println(_name.c_str());
+
+        if (isConnected()) {
+            shouldChangeName = true;
+        }
     }
-    else {
+    else
+    {
         log_e("name's too long");
     }
 
-    pNameCharacteristic->setValue(name);
+    pNameCharacteristic->setValue(_name);
 }
-void BLEPeer::onConnectWrite() {
-    auto _autoConnect = (bool) pConnectCharacteristic->getValue().data()[0];
-    if (_autoConnect != autoConnect) {
+void BLEPeer::changeName() {
+    Serial.printf("setting remote name to %s\n", _name.c_str());
+    pRemoteNameCharacteristic->writeValue(_name, true);
+
+    _name = pRemoteNameCharacteristic->readValue();
+    Serial.printf("updated remote name: %s\n", _name.c_str());
+
+    pNameCharacteristic->setValue(_name);
+}
+
+void BLEPeer::onConnectWrite()
+{
+    auto _autoConnect = (bool)pConnectCharacteristic->getValue().data()[0];
+    if (_autoConnect != autoConnect)
+    {
         autoConnect = _autoConnect;
         preferences.putBool("connect", autoConnect);
 
         Serial.print("updated autoConnect to ");
         Serial.println(autoConnect);
 
-        if (!autoConnect && pClient != nullptr) {
-            Serial.println("deleting client");
-            BLEDevice::deleteClient(pClient);
-
-            pRemoteNameCharacteristic = nullptr;
-            pRemoteTypeCharacteristic = nullptr;
-            pRemoteSensorConfigurationCharacteristic = nullptr;
-            pRemoteSensorDataCharacteristic = nullptr;
-            pRemoteService = nullptr;
-            pClient = nullptr;
+        if (!autoConnect && pClient != nullptr)
+        {
+            Serial.println("will disconnect client");
+            shouldDisconnect = true;
         }
 
-        BLEPeer::updateShouldScan();
+        updateShouldScan();
     }
 }
-void BLEPeer::onTypeWrite() {
-    // FILL - send to remote char
+
+void BLEPeer::onTypeWrite()
+{
+    if (isConnected()) {
+        typeToChangeTo = (type::Type) pTypeCharacteristic->getValue().data()[0];
+        shouldChangeType = true;
+    }
 }
-void BLEPeer::onSensorConfigurationWrite() {
-    // FILL - send to remote char
+void BLEPeer::changeType() {
+    Serial.printf("writing remote type %d\n", (uint8_t) typeToChangeTo);
+    pRemoteTypeCharacteristic->writeValue((uint8_t)typeToChangeTo, true);
+    Serial.println("wrote remote type!");
+    _type = (type::Type) pRemoteTypeCharacteristic->readValue().data()[0];
+    Serial.println((uint8_t)_type);
+    Serial.printf("read remote type %d\n", (uint8_t) _type);
+    pTypeCharacteristic->setValue((uint8_t) _type);
+    Serial.println("set value!");
 }
+
+void BLEPeer::onSensorConfigurationWrite()
+{
+    if (isConnected()) {
+        auto newConfigurations = pSensorConfigurationCharacteristic->getValue();
+        setConfigurations((uint8_t *) newConfigurations.data(), newConfigurations.length());
+        receivedConfiguration = newConfigurations;
+        shouldChangeSensorConfiguration = true;
+    }
+}
+void BLEPeer::changeSensorConfiguration() {
+    //pRemoteSensorConfigurationCharacteristic->writeValue(sensorConfiguration, sizeof(sensorConfiguration), true);
+    pRemoteSensorConfigurationCharacteristic->writeValue(receivedConfiguration, true);
+
+    /*
+    auto _sensorConfiguration = pRemoteSensorConfigurationCharacteristic->readValue().data();
+    memcpy(sensorConfiguration, _sensorConfiguration, sizeof(sensorConfiguration));
+    pSensorConfigurationCharacteristic->setValue((uint8_t *) sensorConfiguration, sizeof(sensorConfiguration));
+    */
+}
+
 void BLEPeer::onWrite(BLECharacteristic *pCharacteristic)
 {
     Serial.print("[peer #");
@@ -200,18 +332,33 @@ void BLEPeer::onWrite(BLECharacteristic *pCharacteristic)
         Serial.println("sensor configuration");
         onSensorConfigurationWrite();
     }
-    else {
+    else
+    {
         Serial.println("unknown");
+    }
+}
+void BLEPeer::onSubscribe(NimBLECharacteristic* pCharacteristic, ble_gap_conn_desc* desc, uint16_t subValue) {
+    // may not need this...
+
+    bool didSubscribeUpdate = false;
+    bool isSubscribed;
+    if (subValue == 0 || subValue == 1) {
+        didSubscribeUpdate = true;
+        isSubscribed = (subValue == 1);
     }
 }
 
 bool BLEPeer::shouldScan = false;
-void BLEPeer::updateShouldScan() {
+void BLEPeer::updateShouldScan()
+{
     bool _shouldScan = false;
 
-    for (uint8_t index = 0; !_shouldScan && index < NIMBLE_MAX_CONNECTIONS; index++)
+    if (ble::isServerConnected)
     {
-        _shouldScan = _shouldScan || (peers[index].autoConnect && peers[index].pClient == nullptr);
+        for (uint8_t index = 0; !_shouldScan && index < NIMBLE_MAX_CONNECTIONS; index++)
+        {
+            _shouldScan = _shouldScan || (peers[index].autoConnect && peers[index].pClient == nullptr);
+        }
     }
     shouldScan = _shouldScan;
     Serial.printf("should scan: %d\n", shouldScan);
@@ -219,12 +366,15 @@ void BLEPeer::updateShouldScan() {
 unsigned long BLEPeer::lastScanCheck = 0;
 void BLEPeer::checkScan()
 {
-    if (pBLEScan->isScanning() != shouldScan) {
-        if (shouldScan) {
+    if (pBLEScan->isScanning() != shouldScan)
+    {
+        if (shouldScan)
+        {
             Serial.println("starting ble scan");
             pBLEScan->start(0, nullptr, false);
         }
-        else {
+        else
+        {
             Serial.println("stopping ble scan");
             pBLEScan->stop();
         }
@@ -246,60 +396,107 @@ void BLEPeer::loop()
         peers[index]._loop();
     }
 }
-
-void BLEPeer::onRemoteSensorDataCharacteristicNotification(NimBLERemoteCharacteristic* pRemoteCharacteristic, uint8_t* pData, size_t length, bool isNotify) {
+void BLEPeer::onServerConnect()
+{
+    updateShouldScan();
+}
+void BLEPeer::onServerDisconnect()
+{
     for (uint8_t index = 0; index < NIMBLE_MAX_CONNECTIONS; index++)
     {
-        if (peers[index].pRemoteSensorDataCharacteristic == pRemoteCharacteristic) {
+        peers[index].disconnect();
+    }
+
+    updateShouldScan();
+    checkScan();
+}
+void BLEPeer::disconnect()
+{
+    if (pClient != nullptr)
+    {
+        pClient->disconnect();
+        pClient = nullptr;
+    }
+}
+
+void BLEPeer::onRemoteSensorDataCharacteristicNotification(NimBLERemoteCharacteristic *pRemoteCharacteristic, uint8_t *pData, size_t length, bool isNotify)
+{
+    for (uint8_t index = 0; index < NIMBLE_MAX_CONNECTIONS; index++)
+    {
+        if (peers[index].pRemoteSensorDataCharacteristic == pRemoteCharacteristic)
+        {
             peers[index]._onRemoteSensorDataCharacteristicNotification(pRemoteCharacteristic, pData, length, isNotify);
             break;
         }
     }
 }
-void BLEPeer::_onRemoteSensorDataCharacteristicNotification(NimBLERemoteCharacteristic* pRemoteCharacteristic, uint8_t* pData, size_t length, bool isNotify) {
-    std::string str = (isNotify == true) ? "Notification" : "Indication";
-    str += " from ";
-    /** NimBLEAddress and NimBLEUUID have std::string operators */
-    str += std::string(pRemoteCharacteristic->getRemoteService()->getClient()->getPeerAddress());
-    str += ": Service = " + std::string(pRemoteCharacteristic->getRemoteService()->getUUID());
-    str += ", Characteristic = " + std::string(pRemoteCharacteristic->getUUID());
-    str += ", Value = " + std::string((char*)pData, length);
-    Serial.println(str.c_str());
+void BLEPeer::_onRemoteSensorDataCharacteristicNotification(NimBLERemoteCharacteristic *pRemoteCharacteristic, uint8_t *pData, size_t length, bool isNotify)
+{
+    if (pRemoteCharacteristic == pRemoteSensorDataCharacteristic)
+    {
+        sensorDataSize = length;
+        memcpy(sensorData, pData, sensorDataSize);
+        shouldNotifySensorData = true;
+    }
+}
+void BLEPeer::notifySensorData() {
+    pSensorDataCharacteristic->setValue(sensorData, sensorDataSize);
+    pSensorDataCharacteristic->notify();
 }
 
-bool BLEPeer::connectToDevice() {
+bool BLEPeer::isConnected()
+{
+    Serial.println("checking if connected...");
+    return pClient != nullptr && pClient->isConnected();
+}
+bool BLEPeer::connectToDevice()
+{
     Serial.println("connecting to device...");
 
     pClient = nullptr;
 
-    if(NimBLEDevice::getClientListSize()) {
+    Serial.println("getting client list size...");
+    if (NimBLEDevice::getClientListSize())
+    {
+        Serial.println("getting client by peer address");
+        Serial.println(pAdvertisedDevice != nullptr);
         pClient = NimBLEDevice::getClientByPeerAddress(pAdvertisedDevice->getAddress());
-        if(pClient){
-            if(!pClient->connect(pAdvertisedDevice, false)) {
+        if (pClient)
+        {
+            if (!pClient->connect(pAdvertisedDevice, false))
+            {
                 Serial.println("Reconnect failed");
                 return false;
             }
-            else {
+            else
+            {
                 Serial.println("Reconnected client");
             }
         }
     }
 
-    if (!pClient) {
-        if(NimBLEDevice::getClientListSize() >= NIMBLE_MAX_CONNECTIONS) {
+    if (pClient == nullptr)
+    {
+        if (NimBLEDevice::getClientListSize() >= NIMBLE_MAX_CONNECTIONS)
+        {
             Serial.println("Max clients reached - no more connections available");
             return false;
         }
 
         pClient = NimBLEDevice::createClient();
-        pClient->setClientCallbacks(this);
-        if (!pClient->connect(pAdvertisedDevice)) {
+        pClient->setClientCallbacks(this, false);
+        pClient->setConnectionParams(12, 12, 0, 51);
+        pClient->setConnectTimeout(5);
+        if (!pClient->connect(pAdvertisedDevice))
+        {
             pClient = nullptr;
         }
     }
 
-    if(!pClient->isConnected()) {
-        if (!pClient->connect(pAdvertisedDevice)) {
+    if (!pClient->isConnected())
+    {
+        if (!pClient->connect(pAdvertisedDevice))
+        {
             Serial.println("Failed to connect");
             return false;
         }
@@ -312,61 +509,147 @@ bool BLEPeer::connectToDevice() {
 
     Serial.println("getting service...");
     pRemoteService = pClient->getService(ble::pService->getUUID());
-    if (pRemoteService) {
+    if (pRemoteService)
+    {
         Serial.println("got service!");
-        
+
         Serial.println("getting name characteristic...");
         pRemoteNameCharacteristic = pRemoteService->getCharacteristic(bleName::pCharacteristic->getUUID());
+        if (pRemoteNameCharacteristic == nullptr) {
+            Serial.println("unable to get name characteristic");
+            disconnect();
+            return false;
+        }
         Serial.println("got name characteristic!");
-
-        Serial.println("getting value...");
-        name = pRemoteNameCharacteristic->getValue();
-        Serial.printf("got name(%d): %s, %s\n", name.length(), name.c_str());
 
         Serial.println("getting type characteristic...");
         pRemoteTypeCharacteristic = pRemoteService->getCharacteristic(bleType::pCharacteristic->getUUID());
+        if (pRemoteTypeCharacteristic == nullptr) {
+            Serial.println("unable to get type characteristic");
+            disconnect();
+            return false;
+        }
         Serial.println("got type characteristic!");
-
-        Serial.println("getting type...");
-        type = (type::Type) pRemoteTypeCharacteristic->getValue().data()[0];
-        Serial.printf("got type: %d\n", (uint8_t) type);
 
         Serial.println("getting sensorConfiguration characteristic...");
         pRemoteSensorConfigurationCharacteristic = pRemoteService->getCharacteristic(bleSensorData::pConfigurationCharacteristic->getUUID());
-        Serial.println("got sensorConfiguration characteristic!");
-
-        Serial.println("getting sensorConfiguration...");
-        auto _sensorConfiguration = pRemoteSensorConfigurationCharacteristic->getValue().data();
-        memcpy(sensorConfiguration, _sensorConfiguration, sizeof(sensorConfiguration));
-        Serial.println("got sensorConfiguration!");
-        for (uint8_t index = 0; index < sizeof(sensorConfiguration); index++) {
-            Serial.printf("%d: %d\n", index, sensorConfiguration[index]);
+        if (pRemoteSensorConfigurationCharacteristic == nullptr) {
+            Serial.println("unable to get sensor config characteristic");
+            disconnect();
+            return false;
         }
+        Serial.println("got sensorConfiguration characteristic!");
 
         Serial.println("getting sensorData characteristic...");
         pRemoteSensorDataCharacteristic = pRemoteService->getCharacteristic(bleSensorData::pDataCharacteristic->getUUID());
-        pRemoteSensorDataCharacteristic->subscribe(true, onRemoteSensorDataCharacteristicNotification);
+        if (pRemoteSensorDataCharacteristic == nullptr) {
+            Serial.println("unable to get sensor data characteristic");
+            disconnect();
+            return false;
+        }
         Serial.println("got sensorData characteristic!");
+
+        Serial.println("getting name...");
+        _name = pRemoteNameCharacteristic->readValue();
+        pNameCharacteristic->setValue(_name);
+        Serial.printf("got name(%d): %s\n", _name.length(), _name.c_str());
+
+        Serial.println("getting type...");
+        _type = (type::Type)pRemoteTypeCharacteristic->readValue().data()[0];
+        pTypeCharacteristic->setValue((uint8_t)_type);
+        Serial.printf("got type: %d\n", (uint8_t)_type);
+
+        Serial.println("getting sensorConfiguration...");
+        auto _sensorConfiguration = pRemoteSensorConfigurationCharacteristic->readValue().data();
+        memcpy(sensorConfiguration, _sensorConfiguration, sizeof(sensorConfiguration));
+        pSensorConfigurationCharacteristic->setValue(sensorConfiguration, sizeof(sensorConfiguration));
+        Serial.println("got sensorConfiguration!");
+
+        pRemoteSensorDataCharacteristic->subscribe(true, onRemoteSensorDataCharacteristicNotification);
+
+        Serial.println("done getting device!");
+
+        updateIsConnectedCharacteristic();
+        updateShouldScan();
     }
-    else {
+    else
+    {
         Serial.println("remote service not found");
     }
 
     return true;
 }
-void BLEPeer::onConnect(NimBLEClient* pClient) {
+void BLEPeer::onConnect(NimBLEClient *_pClient)
+{
     Serial.printf("[peer #%d] client connected\n", index);
-    updateShouldScan();
-    pClient->updateConnParams(120,120,0,60);
+    //pClient->updateConnParams(120, 120, 0, 60);
 }
-void BLEPeer::onDisconnect(NimBLEClient* pClient) {
+void BLEPeer::onDisconnect(NimBLEClient *_pClient)
+{
     Serial.printf("[peer #%d] client disconnect\n", index);
     updateShouldScan();
+    updateIsConnectedCharacteristic();
+}
+void BLEPeer::updateIsConnectedCharacteristic(bool notify)
+{
+    auto _isConnected = isConnected();
+    pIsConnectedCharacteristic->setValue((uint8_t *)&_isConnected, 1);
+    if (notify)
+    {
+        pIsConnectedCharacteristic->notify();
+    }
+}
+bool BLEPeer::onConnParamsUpdateRequest(NimBLEClient *pClient, const ble_gap_upd_params *params)
+{
+    if (params->itvl_min < 24)
+    { /** 1.25ms units */
+        return false;
+    }
+    else if (params->itvl_max > 40)
+    { /** 1.25ms units */
+        return false;
+    }
+    else if (params->latency > 2)
+    { /** Number of intervals allowed to skip */
+        return false;
+    }
+    else if (params->supervision_timeout > 100)
+    { /** 10ms units */
+        return false;
+    }
+
+    return true;
 }
 void BLEPeer::_loop()
 {
-    if (foundDevice) {
+    if (foundDevice)
+    {
         connectToDevice();
         foundDevice = false;
+    }
+
+    if (shouldChangeType) {
+        changeType();
+        shouldChangeType = false;
+    }
+
+    if (shouldChangeSensorConfiguration) {
+        changeSensorConfiguration();
+        shouldChangeSensorConfiguration = false;
+    }
+
+    if (shouldChangeName) {
+        changeName();
+        shouldChangeName = false;
+    }
+
+    if (shouldNotifySensorData) {
+        notifySensorData();
+        shouldNotifySensorData = false;
+    }
+
+    if (shouldDisconnect) {
+        disconnect();
+        shouldDisconnect = false;
     }
 }
