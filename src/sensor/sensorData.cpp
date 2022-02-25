@@ -13,10 +13,11 @@ namespace sensorData
         return sensorType < SensorType::COUNT;
     }
 
+    Configurations configurations;
     uint16_t motionConfiguration[(uint8_t)motionSensor::DataType::COUNT]{0};
     uint16_t pressureConfiguration[(uint8_t)pressureSensor::DataType::COUNT]{0};
     bool hasAtLeastOneNonzeroDelay = false;
-    void updateHasAtLeastOneNonzeroDelay()
+    void updateHasAtLeastOneNonzeroDelay(Configurations &_configurations)
     {
         hasAtLeastOneNonzeroDelay = false;
 
@@ -96,7 +97,7 @@ namespace sensorData
             }
         }
     }
-    void setConfigurations(const uint8_t *newConfigurations, uint8_t size)
+    void setConfigurations(const uint8_t *newConfigurations, uint8_t size, Configurations &_configurations)
     {
         uint8_t offset = 0;
         while (offset < size)
@@ -132,9 +133,9 @@ namespace sensorData
         Serial.println();
 #endif
 
-        updateHasAtLeastOneNonzeroDelay();
+        updateHasAtLeastOneNonzeroDelay(_configurations);
     }
-    void clearConfiguration(SensorType sensorType)
+    void clearConfiguration(SensorType sensorType, Configurations &_configurations = configurations)
     {
         switch (sensorType)
         {
@@ -148,7 +149,7 @@ namespace sensorData
             break;
         }
     }
-    void clearConfigurations()
+    void clearConfigurations(Configurations &_configurations)
     {
         for (uint8_t index = 0; index < (uint8_t)SensorType::COUNT; index++)
         {
@@ -156,7 +157,7 @@ namespace sensorData
             clearConfiguration(sensorType);
         }
 
-        updateHasAtLeastOneNonzeroDelay();
+        updateHasAtLeastOneNonzeroDelay(_configurations);
     }
 
     uint8_t motionData[(uint8_t)motionSensor::DataSize::TOTAL + (uint8_t)motionSensor::DataType::COUNT]{0};

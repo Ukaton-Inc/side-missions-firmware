@@ -30,7 +30,6 @@ namespace ble
             isServerConnected = true;
             Serial.println("connected via ble");
             bleSensorData::updateConfigurationCharacteristic();
-            BLEPeer::onServerConnect();
         };
 
         void onDisconnect(BLEServer *pServer)
@@ -41,7 +40,6 @@ namespace ble
 
             bleSensorData::clearConfigurations();
             bleWeightData::clearDelay();
-            BLEPeer::onServerDisconnect();
         }
     };
 
@@ -67,7 +65,7 @@ namespace ble
         bleWifi::setup();
         bleBattery::setup();
 
-        BLEPeer::setup();
+        //BLEPeer::setup();
 
         start();
     }
@@ -100,7 +98,7 @@ namespace ble
             bleWeightData::loop();
             bleBattery::loop();
             bleWifi::loop();
-            BLEPeer::loop();
         }
+        //BLEPeer::loop();
     }
 } // namespace ble

@@ -44,12 +44,20 @@ namespace type
     {
         return _isRightInsole;
     }
+    bool isTypeValid(Type newType) {
+        return ((uint8_t) newType) < ((uint8_t) Type::COUNT);
+    }
     void setType(Type newType)
     {
-        type = newType;
-        preferences.putUChar("type", (uint8_t) type);
-        Serial.print("changed device type to: ");
-        Serial.println((uint8_t)type);
-        onTypeUpdate();
+        if (isTypeValid(newType)) {
+            type = newType;
+            preferences.putUChar("type", (uint8_t) type);
+            Serial.print("changed device type to: ");
+            Serial.println((uint8_t)type);
+            onTypeUpdate();
+        }
+        else {
+            log_e("invalid type to set");
+        }
     }
 } // namespace type

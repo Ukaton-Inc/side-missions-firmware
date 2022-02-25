@@ -15,6 +15,21 @@ namespace bleSensorData {
         
         pConfigurationCharacteristic->setValue((uint8_t *) configuration, sizeof(configuration));
     }
+
+    bool isSubscribed = false;
+    class DataCharacteristicCallbacks : public BLECharacteristicCallbacks
+    {
+        void onSubscribe(NimBLECharacteristic* pCharacteristic, ble_gap_conn_desc* desc, uint16_t subValue)
+        {
+            if (subValue == 0) {
+                isSubscribed = false;
+            }
+            else if (subValue == 1) {
+                isSubscribed = true;
+            }
+        }
+    };
+
     class ConfigurationCharacteristicCallbacks : public BLECharacteristicCallbacks
     {
         void onWrite(BLECharacteristic *pCharacteristic)
@@ -60,10 +75,11 @@ namespace bleSensorData {
         pConfigurationCharacteristic->setCallbacks(new ConfigurationCharacteristicCallbacks());
         updateConfigurationCharacteristic();
         pDataCharacteristic = ble::createCharacteristic(GENERATE_UUID("6002"), NIMBLE_PROPERTY::NOTIFY, "sensor data");
+        pDataCharacteristic->setCallbacks(new DataCharacteristicCallbacks());
     }
     
     void loop() {
-        if (lastDataUpdateTime != sensorData::lastDataUpdateTime && (sensorData::motionDataSize + sensorData::pressureDataSize > 0) && !webSocket::isConnectedToClient()) {
+        if (isSubscribed && lastDataUpdateTime != sensorData::lastDataUpdateTime && (sensorData::motionDataSize + sensorData::pressureDataSize > 0) && !webSocket::isConnectedToClient()) {
             lastDataUpdateTime = sensorData::lastDataUpdateTime;
             updateDataCharacteristic();
         }
