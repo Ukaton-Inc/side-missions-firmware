@@ -25,90 +25,6 @@ void BLEPeer_::AdvertisedDeviceCallbacks::onResult(NimBLEAdvertisedDevice *adver
     }
 }
 
-void BLEPeer_::setConfigurations(const uint8_t *newConfigurations, uint8_t size)
-{
-    uint8_t offset = 0;
-    while (offset < size)
-    {
-        const auto sensorType = (sensorData::SensorType)newConfigurations[offset++];
-        if (sensorData::isValidSensorType(sensorType))
-        {
-            const uint8_t _size = newConfigurations[offset++];
-            setConfiguration(&newConfigurations[offset], _size, sensorType);
-            offset += _size;
-        }
-        else {
-            Serial.printf("invalid sensor type: %d\n", (uint8_t) sensorType);
-            break;
-        }
-    }
-
-    uint8_t _offset = 0;
-    memcpy(&sensorConfiguration[_offset], motionConfiguration, sizeof(motionConfiguration));
-    _offset += sizeof(motionConfiguration);
-    memcpy(&sensorConfiguration[_offset], pressureConfiguration, sizeof(pressureConfiguration));
-    _offset += sizeof(pressureConfiguration);
-
-    pSensorConfigurationCharacteristic->setValue((uint8_t *) sensorConfiguration, sizeof(sensorConfiguration));
-}
-void BLEPeer_::setConfiguration(const uint8_t *newConfiguration, uint8_t size, sensorData::SensorType sensorType)
-{
-    for (uint8_t offset = 0; offset < size; offset += 3)
-    {
-        auto sensorDataTypeIndex = newConfiguration[offset];
-        uint16_t delay = ((uint16_t)newConfiguration[offset + 2] << 8) | (uint16_t)newConfiguration[offset + 1];
-        delay -= (delay % sensorData::min_delay_ms);
-
-        switch (sensorType)
-        {
-        case sensorData::SensorType::MOTION:
-            if (motionSensor::isValidDataType((motionSensor::DataType)sensorDataTypeIndex))
-            {
-                motionConfiguration[sensorDataTypeIndex] = delay;
-            }
-            break;
-        case sensorData::SensorType::PRESSURE:
-            if (pressureSensor::isValidDataType((pressureSensor::DataType)sensorDataTypeIndex))
-            {
-                pressureConfiguration[sensorDataTypeIndex] = delay;
-            }
-            break;
-        default:
-            break;
-        }
-    }
-
-    if (sensorType == sensorData::SensorType::PRESSURE)
-    {
-        if (pressureConfiguration[(uint8_t)pressureSensor::DataType::SINGLE_BYTE] > 0 && pressureConfiguration[(uint8_t)pressureSensor::DataType::DOUBLE_BYTE] > 0)
-        {
-            pressureConfiguration[(uint8_t)pressureSensor::DataType::SINGLE_BYTE] = 0;
-        }
-    }
-}
-void BLEPeer_::clearConfigurations()
-{
-    for (uint8_t index = 0; index < (uint8_t)sensorData::SensorType::COUNT; index++)
-    {
-        auto sensorType = (sensorData::SensorType)index;
-        clearConfiguration(sensorType);
-    }
-}
-void BLEPeer_::clearConfiguration(sensorData::SensorType sensorType)
-{
-    switch (sensorType)
-    {
-    case sensorData::SensorType::MOTION:
-        memset(motionConfiguration, 0, sizeof(motionConfiguration));
-        break;
-    case sensorData::SensorType::PRESSURE:
-        memset(pressureConfiguration, 0, sizeof(pressureConfiguration));
-        break;
-    default:
-        break;
-    }
-}
-
 void BLEPeer_::formatBLECharacteristicUUID(char *uuidBuffer, uint8_t value)
 {
     snprintf(uuidBuffer, BLE_UUID_LENGTH + 1, "%s%s%d%d%s", UUID_PREFIX, BLE_PEER_UUID_PREFIX, index, value, UUID_SUFFIX);
@@ -176,7 +92,7 @@ void BLEPeer_::_setup(uint8_t _index)
     formatBLECharacteristicUUID(uuidBuffer, 4);
     formatBLECharacteristicName(nameBuffer, "sensor configuration");
     pSensorConfigurationCharacteristic = ble::createCharacteristic(uuidBuffer, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE, nameBuffer);
-    pSensorConfigurationCharacteristic->setValue(sensorConfiguration, sizeof(sensorConfiguration));
+    pSensorConfigurationCharacteristic->setValue((uint8_t *) configurations.flattened.data(), configurations.flattened.max_size());
     pSensorConfigurationCharacteristic->setCallbacks(this);
 
     formatBLECharacteristicUUID(uuidBuffer, 5);
@@ -292,7 +208,7 @@ void BLEPeer_::onSensorConfigurationWrite()
 {
     if (isConnected()) {
         auto newConfigurations = pSensorConfigurationCharacteristic->getValue();
-        setConfigurations((uint8_t *) newConfigurations.data(), newConfigurations.length());
+        sensorData::setConfigurations((uint8_t *) newConfigurations.data(), newConfigurations.length(), configurations);
         receivedConfiguration = newConfigurations;
         shouldChangeSensorConfiguration = true;
     }
@@ -572,9 +488,8 @@ bool BLEPeer_::connectToDevice()
         Serial.printf("got type: %d\n", (uint8_t)_type);
 
         Serial.println("getting sensorConfiguration...");
-        auto _sensorConfiguration = pRemoteSensorConfigurationCharacteristic->readValue().data();
-        memcpy(sensorConfiguration, _sensorConfiguration, sizeof(sensorConfiguration));
-        pSensorConfigurationCharacteristic->setValue(sensorConfiguration, sizeof(sensorConfiguration));
+        auto sensorConfiguration = pRemoteSensorConfigurationCharacteristic->readValue();
+        pSensorConfigurationCharacteristic->setValue(sensorConfiguration);
         Serial.println("got sensorConfiguration!");
 
         pRemoteSensorDataCharacteristic->subscribe(true, onRemoteSensorDataCharacteristicNotification);

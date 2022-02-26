@@ -20,14 +20,15 @@ namespace sensorData
         std::array<uint16_t, (uint8_t) motionSensor::DataType::COUNT> motion;
         std::array<uint16_t, (uint8_t) pressureSensor::DataType::COUNT> pressure;
         bool hasAtLeastOneNonzeroDelay = false;
+
+        std::array<uint16_t, (uint8_t) motionSensor::DataType::COUNT + (uint8_t) pressureSensor::DataType::COUNT> flattened;
     };
     extern Configurations configurations;
 
-    extern uint16_t motionConfiguration[(uint8_t) motionSensor::DataType::COUNT];
-    extern uint16_t pressureConfiguration[(uint8_t) pressureSensor::DataType::COUNT];
     void setConfigurations(const uint8_t *newConfigurations, uint8_t size, Configurations &_configurations = configurations);
     void clearConfigurations(Configurations &_configurations = configurations);
     bool isValidSensorType(SensorType sensorType);
+    void flattenConfigurations(Configurations &_configurations = configurations);
     
     /*
     TODO - can later use a struct instead of arrays and stuff...

@@ -56,18 +56,9 @@ private:
 private:
     type::Type _type = type::Type::MOTION_MODULE;
     bool isValidSensorType(sensorData::SensorType);
-    uint8_t sensorConfiguration[sizeof(sensorData::motionConfiguration) + sizeof(sensorData::pressureConfiguration)];
-    uint16_t motionConfiguration[(uint8_t) motionSensor::DataType::COUNT];
-    uint16_t pressureConfiguration[(uint8_t) pressureSensor::DataType::COUNT];
+    sensorData::Configurations configurations;
     uint8_t sensorData[2 + sizeof(sensorData::motionData) + 2 + sizeof(sensorData::pressureData)];
     uint8_t sensorDataSize = 0;
-
-private:
-    void setConfigurations(const uint8_t *newConfigurations, uint8_t size);
-    void setConfiguration(const uint8_t *newConfiguration, uint8_t size, sensorData::SensorType sensorType);
-    void clearConfiguration(sensorData::SensorType sensorType);
-    void clearConfigurations();
-
 
 private:
     void formatBLECharacteristicUUID(char *buffer, uint8_t value);

@@ -308,7 +308,7 @@ namespace webSocket
 
     // [...[messageType, payloadSize?, payload]], with payloadSize for variable payloads (name) excluding sensorData
     // sensorData is [messageType, timestamp, motionPayloadSize, motionPayload, pressurePayloadSize, pressurePayload]
-    uint8_t _clientMessageData[1 + sizeof(uint8_t) + 1 + sizeof(bool) + 1 + sizeof(type::Type) + 2 + name::MAX_NAME_LENGTH + 1 + sizeof(motionSensor::calibration) + 1 + sizeof(sensorData::motionConfiguration) + 1 + sizeof(sensorData::pressureConfiguration) + 1 + sizeof(uint16_t) + 2 + sizeof(sensorData::motionData) + 2 + sizeof(sensorData::pressureData) + 1 + sizeof(uint16_t) + 1 + sizeof(float)];
+    uint8_t _clientMessageData[1 + sizeof(uint8_t) + 1 + sizeof(bool) + 1 + sizeof(type::Type) + 2 + name::MAX_NAME_LENGTH + 1 + sizeof(motionSensor::calibration) + 1 + (sizeof(uint16_t) * sensorData::configurations.motion.max_size()) + 1 + (sizeof(uint16_t) * sensorData::configurations.pressure.max_size()) + 1 + sizeof(uint16_t) + 2 + sizeof(sensorData::motionData) + 2 + sizeof(sensorData::pressureData) + 1 + sizeof(uint16_t) + 1 + sizeof(float)];
     uint8_t _clientMessageDataSize = 0;
 
     unsigned long lastTimeServerCleanedUpClients = 0;
@@ -362,10 +362,10 @@ namespace webSocket
                     break;
                 case MessageType::GET_SENSOR_DATA_CONFIGURATIONS:
                 case MessageType::SET_SENSOR_DATA_CONFIGURATIONS:
-                    memcpy(&_clientMessageData[_clientMessageDataSize], sensorData::motionConfiguration, sizeof(sensorData::motionConfiguration));
-                    _clientMessageDataSize += sizeof(sensorData::motionConfiguration);
-                    memcpy(&_clientMessageData[_clientMessageDataSize], sensorData::pressureConfiguration, sizeof(sensorData::pressureConfiguration));
-                    _clientMessageDataSize += sizeof(sensorData::pressureConfiguration);
+                    memcpy(&_clientMessageData[_clientMessageDataSize], (uint8_t *) sensorData::configurations.motion.data(), sizeof(uint16_t) * sensorData::configurations.motion.max_size());
+                    _clientMessageDataSize += sizeof(uint16_t) * sensorData::configurations.motion.max_size();
+                    memcpy(&_clientMessageData[_clientMessageDataSize], (uint8_t *) sensorData::configurations.pressure.data(), sizeof(uint16_t) * sensorData::configurations.pressure.max_size());
+                    _clientMessageDataSize += sizeof(uint16_t) * sensorData::configurations.pressure.max_size();
                     break;
                 case MessageType::SENSOR_DATA:
                 {
