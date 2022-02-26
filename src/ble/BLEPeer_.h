@@ -1,6 +1,6 @@
 #pragma once
-#ifndef _BLE_PEER_
-#define _BLE_PEER_
+#ifndef _BLE_PEER__
+#define _BLE_PEER__
 
 #include "definitions.h"
 #include "ble.h"
@@ -126,4 +126,4 @@ public:
     ~BLEPeer_();
 }; // class BLEPeer_
 
-#endif // _BLE_PEER_
+#endif // _BLE_PEER__

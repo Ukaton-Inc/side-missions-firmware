@@ -4,16 +4,8 @@
 
 namespace bleSensorData {
     BLECharacteristic *pConfigurationCharacteristic;
-    uint8_t configuration[sizeof(uint16_t) *  sensorData::configurations.motion.max_size() + sizeof(uint16_t) * sensorData::configurations.pressure.max_size()];
     void updateConfigurationCharacteristic() {
-        uint8_t offset = 0;
-
-        memcpy(&configuration[offset], sensorData::configurations.motion.data(), sizeof(uint16_t) * sensorData::configurations.motion.max_size());
-        offset += sizeof(uint16_t) *  sensorData::configurations.motion.max_size();
-        memcpy(&configuration[offset], sensorData::configurations.pressure.data(), sensorData::configurations.pressure.max_size());
-        offset += sizeof(uint16_t) *  sensorData::configurations.pressure.max_size();
-        
-        pConfigurationCharacteristic->setValue((uint8_t *) configuration, sizeof(configuration));
+        pConfigurationCharacteristic->setValue((uint8_t *) sensorData::configurations.flattened.data(), sizeof(uint16_t) * sensorData::configurations.flattened.max_size());
     }
 
     bool isSubscribed = false;

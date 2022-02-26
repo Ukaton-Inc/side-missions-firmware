@@ -65,7 +65,7 @@ namespace ble
         bleWifi::setup();
         bleBattery::setup();
 
-        //BLEPeer::setup();
+        BLEPeer::setup();
 
         start();
     }
@@ -99,6 +99,6 @@ namespace ble
             bleBattery::loop();
             bleWifi::loop();
         }
-        //BLEPeer::loop();
+        BLEPeer::loop();
     }
 } // namespace ble
