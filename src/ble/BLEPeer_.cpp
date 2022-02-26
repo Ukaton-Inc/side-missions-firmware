@@ -253,16 +253,6 @@ void BLEPeer_::onWrite(BLECharacteristic *pCharacteristic)
         Serial.println("unknown");
     }
 }
-void BLEPeer_::onSubscribe(NimBLECharacteristic* pCharacteristic, ble_gap_conn_desc* desc, uint16_t subValue) {
-    // may not need this...
-
-    bool didSubscribeUpdate = false;
-    bool isSubscribed;
-    if (subValue == 0 || subValue == 1) {
-        didSubscribeUpdate = true;
-        isSubscribed = (subValue == 1);
-    }
-}
 
 bool BLEPeer_::shouldScan = false;
 void BLEPeer_::updateShouldScan()

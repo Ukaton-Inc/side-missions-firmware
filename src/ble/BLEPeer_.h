@@ -95,7 +95,6 @@ private:
 
 public:
     void onWrite(BLECharacteristic *pCharacteristic);
-    void onSubscribe(NimBLECharacteristic* pCharacteristic, ble_gap_conn_desc* desc, uint16_t subValue);
 
 public:
     void onConnect(NimBLEClient* pClient);
