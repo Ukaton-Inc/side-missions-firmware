@@ -122,9 +122,18 @@ void BLEPeer::updateShouldScan()
 
     if (isServerConnected)
     {
-        for (uint8_t index = 0; !_shouldScan && index < NIMBLE_MAX_CONNECTIONS; index++)
+        for (uint8_t index = 0; index < NIMBLE_MAX_CONNECTIONS; index++)
         {
-            _shouldScan = _shouldScan || (peers[index].autoConnect && peers[index].pClient == nullptr);
+            auto peer = peers[index];
+            if (peer.autoConnect && !peer.isConnected) {
+                if (peer.shouldConnect) {
+                    _shouldScan = false;
+                    break;
+                }
+                else {
+                    _shouldScan = true;
+                }
+            }
         }
     }
     shouldScan = _shouldScan;
@@ -161,7 +170,8 @@ void BLEPeer::onAdvertisedDevice(BLEAdvertisedDevice *advertisedDevice)
                 Serial.printf("found device for peer #%d!\n", index);
                 peers[index].pAdvertisedDevice = advertisedDevice;
                 peers[index].shouldConnect = true;
-                // FIX - stop scanning...
+
+                pBLEScan->stop();
                 updateShouldScan();
                 break;
             }
