@@ -89,6 +89,9 @@ private:
         {
             peer = _peer;
         }
+        ~Callbacks() {
+            peer = nullptr;
+        }
     };
     
     class ClientCallbacks : public Callbacks, public BLEClientCallbacks
@@ -141,12 +144,12 @@ private:
     std::string sensorDataCharacteristicValue;
 
     bool shouldChangeRemoteNameCharacteristic = false;
-    bool shouldChangeRemoteConnectionCharacteristic = false;
+    bool shouldChangeConnection = false;
     bool shouldChangeRemoteTypeCharacteristic = false;
     bool shouldChangeRemoteSensorConfigurationCharacteristic = false;
     
     void changeRemoteNameCharacteristic();
-    void changeRemoteConnectionCharacteristic();
+    void changeConnection();
     void changeRemoteTypeCharacteristic();
     void changeRemoteSensorConfigurationCharacteristic();
 

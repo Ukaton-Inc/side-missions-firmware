@@ -12,6 +12,12 @@ void BLEPeer::setup()
     {
         peers[index]._setup(index);
     }
+
+    pBLEScan = BLEDevice::getScan();
+    pBLEScan->setActiveScan(true);
+    pBLEScan->setAdvertisedDeviceCallbacks(new BLEPeer::AdvertisedDeviceCallbacks(), false);
+
+    updateShouldScan();
 }
 void BLEPeer::_setup(uint8_t _index)
 {
@@ -155,6 +161,8 @@ void BLEPeer::onAdvertisedDevice(BLEAdvertisedDevice *advertisedDevice)
                 Serial.printf("found device for peer #%d!\n", index);
                 peers[index].pAdvertisedDevice = advertisedDevice;
                 peers[index].shouldConnect = true;
+                // FIX - stop scanning...
+                updateShouldScan();
                 break;
             }
         }
@@ -261,7 +269,8 @@ void BLEPeer::onConnectCharacteristicWrite()
         preferences.putBool("connect", autoConnect);
 
         Serial.printf("updated autoConnect to %d\n", autoConnect);
-        shouldChangeRemoteConnectionCharacteristic = true;
+        shouldChangeConnection = true;
+        updateShouldScan();
     }
 }
 void BLEPeer::onTypeCharacteristicWrite()
@@ -309,7 +318,7 @@ void BLEPeer::changeRemoteNameCharacteristic()
 
     pNameCharacteristic->setValue(_name);
 }
-void BLEPeer::changeRemoteConnectionCharacteristic()
+void BLEPeer::changeConnection()
 {
     if (!autoConnect && isConnected)
     {
@@ -493,6 +502,7 @@ void BLEPeer::onConnection()
 }
 void BLEPeer::onDisconnection()
 {
+    
 }
 
 void BLEPeer::changeNameCharacteristic()
@@ -528,7 +538,7 @@ void BLEPeer::disconnect()
     }
 
     shouldChangeRemoteNameCharacteristic = false;
-    shouldChangeRemoteConnectionCharacteristic = false;
+    shouldChangeConnection = false;
     shouldChangeRemoteTypeCharacteristic = false;
     shouldChangeRemoteSensorConfigurationCharacteristic = false;
 }
@@ -633,10 +643,10 @@ void BLEPeer::_loop()
         shouldChangeRemoteNameCharacteristic = false;
     }
 
-    if (shouldChangeRemoteConnectionCharacteristic)
+    if (shouldChangeConnection)
     {
-        changeRemoteConnectionCharacteristic();
-        shouldChangeRemoteConnectionCharacteristic = false;
+        changeConnection();
+        shouldChangeConnection = false;
     }
 
     if (shouldChangeRemoteTypeCharacteristic)
