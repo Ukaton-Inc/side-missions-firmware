@@ -111,7 +111,6 @@ private:
     };
     void onClientConnect(NimBLEClient* pClient);
     void onClientDisconnect(NimBLEClient* pClient);
-    void onClientConnectionUpdate();
     bool onClientConnectionParamsUpdateRequest(NimBLEClient* pClient, const ble_gap_upd_params* params);
 
 private:

@@ -187,14 +187,6 @@ void BLEPeer::onClientDisconnect(NimBLEClient *pClient)
     isConnected = false;
     connectionUpdated = true;
 }
-void BLEPeer::onClientConnectionUpdate()
-{
-    pIsConnectedCharacteristic->setValue(isConnected);
-    if (pIsConnectedCharacteristic->getSubscribedCount() > 0)
-    {
-        pIsConnectedCharacteristic->notify();
-    }
-}
 bool BLEPeer::onClientConnectionParamsUpdateRequest(NimBLEClient *pClient, const ble_gap_upd_params *params)
 {
     if (params->itvl_min < 24)
@@ -315,6 +307,7 @@ void BLEPeer::onSensorConfigurationCharacteristicWrite()
 
     sensorConfigurationCharacteristicValue = pSensorConfigurationCharacteristic->getValue();
     sensorData::setConfigurations((uint8_t *)sensorConfigurationCharacteristicValue.data(), sensorConfigurationCharacteristicValue.length(), configurations);
+    pSensorConfigurationCharacteristic->setValue((uint8_t *)configurations.flattened.data(), sizeof(uint16_t) * configurations.flattened.max_size());
     shouldChangeRemoteSensorConfigurationCharacteristic = true;
 }
 
@@ -537,7 +530,10 @@ void BLEPeer::changeSensorConfigurationCharacteristic()
 }
 void BLEPeer::notifySensorDataCharacteristic()
 {
-    // FILL
+    pSensorDataCharacteristic->setValue(sensorDataCharacteristicValue);
+    if (pSensorDataCharacteristic->getSubscribedCount() > 0) {
+        pSensorDataCharacteristic->notify();
+    }
 }
 
 void BLEPeer::disconnect()
@@ -568,7 +564,7 @@ void BLEPeer::_onRemoteSensorDataCharacteristicNotification(NimBLERemoteCharacte
 {
     if (pRemoteCharacteristic == pRemoteSensorDataCharacteristic)
     {
-        sensorDataCharacteristicValue = pRemoteSensorConfigurationCharacteristic->getValue();
+        sensorDataCharacteristicValue = pRemoteSensorDataCharacteristic->getValue();
         shouldNotifySensorData = true;
     }
 }
