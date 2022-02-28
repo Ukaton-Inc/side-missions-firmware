@@ -85,7 +85,7 @@ bool BLEPeer::isServerConnected = false;
 unsigned long BLEPeer::lastServerConnectionCheck = 0;
 void BLEPeer::checkServerConnection()
 {
-    if (isServerConnected != ble::isServerConnected)
+    if (isServerConnected != ble::isServerConnected && peers[NIMBLE_MAX_CONNECTIONS-1].pSensorDataCharacteristic->getSubscribedCount() > 0)
     {
         isServerConnected = ble::isServerConnected;
         onServerConnectionUpdate();
