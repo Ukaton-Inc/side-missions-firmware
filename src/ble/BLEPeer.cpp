@@ -4,11 +4,11 @@
 #include "information/bleType.h"
 #include "sensor/bleSensorData.h"
 
-BLEPeer BLEPeer::peers[NIMBLE_MAX_CONNECTIONS];
+BLEPeer BLEPeer::peers[BLE_PEER_MAX_CONNECTIONS];
 
 void BLEPeer::setup()
 {
-    for (uint8_t index = 0; index < NIMBLE_MAX_CONNECTIONS; index++)
+    for (uint8_t index = 0; index < BLE_PEER_MAX_CONNECTIONS; index++)
     {
         peers[index]._setup(index);
     }
@@ -23,9 +23,17 @@ void BLEPeer::_setup(uint8_t _index)
 {
     index = _index;
 
-    char preferencesKey[BLE_UUID_LENGTH + 1];
     snprintf(preferencesKey, sizeof(preferencesKey), "BLEPeer%d", index);
     preferences.begin(preferencesKey);
+    if (preferences.isKey("name"))
+    {
+        _name = preferences.getString("name").c_str();
+    }
+    if (preferences.isKey("connect"))
+    {
+        autoConnect = preferences.getBool("connect");
+    }
+    preferences.end();
 
     char uuidBuffer[BLE_UUID_LENGTH + 1];
     char nameBuffer[MAX_BLE_ATTRIBUTE_LENGTH + 1];
@@ -33,20 +41,12 @@ void BLEPeer::_setup(uint8_t _index)
     formatBLECharacteristicUUID(uuidBuffer, 0);
     formatBLECharacteristicName(nameBuffer, "name");
     pNameCharacteristic = ble::createCharacteristic(uuidBuffer, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE, nameBuffer);
-    if (preferences.isKey("name"))
-    {
-        _name = preferences.getString("name").c_str();
-    }
     pNameCharacteristic->setValue(_name);
     pNameCharacteristic->setCallbacks(new CharacteristicCallbacks(this));
 
     formatBLECharacteristicUUID(uuidBuffer, 1);
     formatBLECharacteristicName(nameBuffer, "connect");
     pConnectCharacteristic = ble::createCharacteristic(uuidBuffer, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE, nameBuffer);
-    if (preferences.isKey("connect"))
-    {
-        autoConnect = preferences.getBool("connect");
-    }
     pConnectCharacteristic->setValue(autoConnect);
     pConnectCharacteristic->setCallbacks(new CharacteristicCallbacks(this));
 
@@ -85,7 +85,7 @@ bool BLEPeer::isServerConnected = false;
 unsigned long BLEPeer::lastServerConnectionCheck = 0;
 void BLEPeer::checkServerConnection()
 {
-    if (isServerConnected != ble::isServerConnected && (!ble::isServerConnected || peers[NIMBLE_MAX_CONNECTIONS-1].pSensorDataCharacteristic->getSubscribedCount() > 0))
+    if (isServerConnected != ble::isServerConnected && (!ble::isServerConnected || peers[BLE_PEER_MAX_CONNECTIONS - 1].pSensorDataCharacteristic->getSubscribedCount() > 0))
     {
         isServerConnected = ble::isServerConnected;
         onServerConnectionUpdate();
@@ -108,7 +108,7 @@ void BLEPeer::onServerConnect()
 }
 void BLEPeer::onServerDisconnect()
 {
-    for (uint8_t index = 0; index < NIMBLE_MAX_CONNECTIONS; index++)
+    for (uint8_t index = 0; index < BLE_PEER_MAX_CONNECTIONS; index++)
     {
         peers[index].shouldDisconnect = true;
     }
@@ -122,15 +122,18 @@ void BLEPeer::updateShouldScan()
 
     if (isServerConnected)
     {
-        for (uint8_t index = 0; index < NIMBLE_MAX_CONNECTIONS; index++)
+        for (uint8_t index = 0; index < BLE_PEER_MAX_CONNECTIONS; index++)
         {
             auto peer = peers[index];
-            if (peer.autoConnect && !peer.isConnected) {
-                if (peer.shouldConnect) {
+            if (peer.autoConnect && !peer.isConnected)
+            {
+                if (peer.shouldConnect)
+                {
                     _shouldScan = false;
                     break;
                 }
-                else {
+                else
+                {
                     _shouldScan = true;
                 }
             }
@@ -163,7 +166,7 @@ void BLEPeer::onAdvertisedDevice(BLEAdvertisedDevice *advertisedDevice)
     {
         Serial.printf("found device \"%s\"\n", advertisedDevice->getName().c_str());
 
-        for (uint8_t index = 0; index < NIMBLE_MAX_CONNECTIONS; index++)
+        for (uint8_t index = 0; index < BLE_PEER_MAX_CONNECTIONS; index++)
         {
             if (peers[index].autoConnect && !peers[index].isConnected && peers[index]._name == advertisedDevice->getName())
             {
@@ -245,8 +248,10 @@ void BLEPeer::onNameCharacteristicWrite()
         if (name::isNameValid(newName.c_str(), newName.length()))
         {
             _name = newName;
-            preferences.putString("name", _name.c_str());
 
+            preferences.begin(preferencesKey);
+            preferences.putString("name", _name.c_str());
+            preferences.end();
             Serial.printf("updated name to: %s\n", _name.c_str());
 
             if (isConnected)
@@ -268,9 +273,12 @@ void BLEPeer::onConnectCharacteristicWrite()
     if (newAutoConnect != autoConnect)
     {
         autoConnect = newAutoConnect;
-        preferences.putBool("connect", autoConnect);
 
+        preferences.begin(preferencesKey);
+        preferences.putBool("connect", autoConnect);
+        preferences.end();
         Serial.printf("updated autoConnect to %d\n", autoConnect);
+
         shouldChangeConnection = true;
         updateShouldScan();
     }
@@ -380,7 +388,7 @@ bool BLEPeer::connect()
 
     if (pClient == nullptr)
     {
-        if (NimBLEDevice::getClientListSize() >= NIMBLE_MAX_CONNECTIONS)
+        if (NimBLEDevice::getClientListSize() >= BLE_PEER_MAX_CONNECTIONS)
         {
             Serial.println("Max clients reached - no more connections available");
             return false;
@@ -505,7 +513,6 @@ void BLEPeer::onConnection()
 }
 void BLEPeer::onDisconnection()
 {
-    
 }
 
 void BLEPeer::changeNameCharacteristic()
@@ -531,7 +538,8 @@ void BLEPeer::changeSensorConfigurationCharacteristic()
 void BLEPeer::notifySensorDataCharacteristic()
 {
     pSensorDataCharacteristic->setValue(sensorDataCharacteristicValue);
-    if (pSensorDataCharacteristic->getSubscribedCount() > 0) {
+    if (pSensorDataCharacteristic->getSubscribedCount() > 0)
+    {
         pSensorDataCharacteristic->notify();
     }
 }
@@ -551,7 +559,7 @@ void BLEPeer::disconnect()
 
 void BLEPeer::onRemoteSensorDataCharacteristicNotification(NimBLERemoteCharacteristic *pRemoteCharacteristic, uint8_t *pData, size_t length, bool isNotify)
 {
-    for (uint8_t index = 0; index < NIMBLE_MAX_CONNECTIONS; index++)
+    for (uint8_t index = 0; index < BLE_PEER_MAX_CONNECTIONS; index++)
     {
         if (peers[index].pRemoteSensorDataCharacteristic == pRemoteCharacteristic)
         {
@@ -586,7 +594,7 @@ void BLEPeer::loop()
         checkScan();
     }
 
-    for (uint8_t index = 0; index < NIMBLE_MAX_CONNECTIONS; index++)
+    for (uint8_t index = 0; index < BLE_PEER_MAX_CONNECTIONS; index++)
     {
         peers[index]._loop();
     }

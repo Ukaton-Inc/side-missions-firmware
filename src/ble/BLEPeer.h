@@ -11,11 +11,12 @@
 #include "NimBLEDevice.h"
 
 #define BLE_PEER_UUID_PREFIX "90"
+#define BLE_PEER_MAX_CONNECTIONS NIMBLE_MAX_CONNECTIONS // NIMBLE_MAX_CONNECTIONS
 
 class BLEPeer
 {
 private:
-    static BLEPeer peers[NIMBLE_MAX_CONNECTIONS];
+    static BLEPeer peers[BLE_PEER_MAX_CONNECTIONS];
 
 public:
     static void setup();
@@ -23,6 +24,7 @@ public:
 private:
     void _setup(uint8_t index);
     Preferences preferences;
+    char preferencesKey[BLE_UUID_LENGTH + 1];
 
 private:
     static constexpr uint16_t check_server_connection_interval_ms = 1000;
