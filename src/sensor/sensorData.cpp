@@ -117,8 +117,8 @@ namespace sensorData
     }
 
     void flattenConfigurations(Configurations &_configurations) {
-        std::copy (configurations.motion.cbegin(), configurations.motion.cend(), configurations.flattened.begin());
-        std::copy (configurations.pressure.cbegin(), configurations.pressure.cend(), configurations.flattened.begin() + configurations.motion.max_size());
+        std::copy (_configurations.motion.cbegin(), _configurations.motion.cend(), _configurations.flattened.begin());
+        std::copy (_configurations.pressure.cbegin(), _configurations.pressure.cend(), _configurations.flattened.begin() + _configurations.motion.max_size());
     }
 
     uint8_t motionData[(uint8_t)motionSensor::DataSize::TOTAL + (uint8_t)motionSensor::DataType::COUNT]{0};
