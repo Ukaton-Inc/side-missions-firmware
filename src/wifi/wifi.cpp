@@ -25,9 +25,6 @@ namespace wifi
     void setup()
     {
         preferences.begin("wifi");
-
-        WiFi.mode(WIFI_STA);
-
         if (preferences.isKey("ssid"))
         {
             ssid = preferences.getString("ssid").c_str();
@@ -37,6 +34,9 @@ namespace wifi
             password = preferences.getString("password").c_str();
         }
         _autoConnect = preferences.getBool("autoConnect", _autoConnect);
+        preferences.end();
+
+        WiFi.mode(WIFI_STA);
 
         if (_autoConnect)
         {
@@ -49,14 +49,22 @@ namespace wifi
     void setSSID(const char *_ssid, bool commit)
     {
         ssid.assign(_ssid, strlen(_ssid));
+
+        preferences.begin("wifi");
         preferences.putString("ssid", ssid.c_str());
+        preferences.end();
+
         Serial.print("new wifi ssid: ");
         Serial.println(ssid.c_str());
     }
     void setPassword(const char *_password, bool commit)
     {
         password.assign(_password, strlen(_password));
+
+        preferences.begin("wifi");
         preferences.putString("password", password.c_str());
+        preferences.end();
+
         Serial.print("new wifi password: ");
         Serial.println(password.c_str());
     }
@@ -70,7 +78,11 @@ namespace wifi
         if (_autoConnect != autoConnect)
         {
             _autoConnect = autoConnect;
+            
+            preferences.begin("wifi");
             preferences.putBool("autoConnect", _autoConnect);
+            preferences.end();
+
             Serial.print("new wifi autoConnect: ");
             Serial.println(autoConnect);
         }

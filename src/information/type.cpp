@@ -29,6 +29,8 @@ namespace type
     {
         preferences.begin("type");
         type = (Type) preferences.getUChar("type", (uint8_t) type);
+        preferences.end();
+        
         onTypeUpdate();
     }
 
@@ -51,7 +53,9 @@ namespace type
     {
         if (isTypeValid(newType)) {
             type = newType;
+            preferences.begin("type");
             preferences.putUChar("type", (uint8_t) type);
+            preferences.end();
             Serial.print("changed device type to: ");
             Serial.println((uint8_t)type);
             onTypeUpdate();

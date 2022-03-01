@@ -11,6 +11,7 @@ namespace debug
     {
         preferences.begin("debug");
         isEnabled = preferences.getBool("isEnabled", isEnabled);
+        preferences.end();
     }
 
     bool getEnabled() {
@@ -19,7 +20,11 @@ namespace debug
     void setEnabled(bool _isEnabled)
     {
         isEnabled = _isEnabled;
+
+        preferences.begin("debug");
         preferences.putBool("isEnabled", isEnabled);
+        preferences.end();
+        
         Serial.print("changed isEnabled to: ");
         Serial.println(isEnabled);
     }

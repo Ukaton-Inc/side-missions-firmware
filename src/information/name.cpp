@@ -15,6 +15,7 @@ namespace name
         if (preferences.isKey("name")) {
             name = preferences.getString("name").c_str();
         }
+        preferences.end();
 
         Serial.print("name: ");
         Serial.println(name.c_str());
@@ -38,7 +39,11 @@ namespace name
     {
         if (isNameValid(newName, length)) {
             name.assign(newName, length);
+
+            preferences.begin("name");
             preferences.putString("name", name.c_str());
+            preferences.end();
+            
             Serial.print("changed name to: ");
             Serial.println(name.c_str());
             ble_svc_gap_device_name_set(name.c_str());

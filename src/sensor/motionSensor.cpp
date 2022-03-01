@@ -25,7 +25,9 @@ namespace motionSensor
             bool readSuccessful = bno.getSensorOffsets(sensorOffsets);
             if (readSuccessful)
             {
+                preferences.begin("motionSensor");
                 preferences.putBytes("sensorOffsets", (void *) &sensorOffsets, sizeof(sensorOffsets));
+                preferences.end();
                 wroteFullCalibration = true;
             }
         }
@@ -46,7 +48,6 @@ namespace motionSensor
 
     void setup()
     {
-        preferences.begin("motionSensor");
 #if DEBUG
         Serial.println("motion setup...");
 #endif
@@ -56,10 +57,12 @@ namespace motionSensor
         }
         delay(1000);
 
+        preferences.begin("motionSensor");
         if (preferences.isKey("sensorOffsets")) {
             preferences.getBytes("sensorOffsets", (void *) &sensorOffsets, sizeof(sensorOffsets));
             bno.setSensorOffsets(sensorOffsets);
         }
+        preferences.end();
 
         bno.setExtCrystalUse(false);
 #if ENABLE_MOVE_TO_WAKE
