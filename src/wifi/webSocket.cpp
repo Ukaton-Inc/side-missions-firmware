@@ -6,7 +6,6 @@
 
 #include "information/name.h"
 #include "information/type.h"
-#include "debug.h"
 #include "sensor/sensorData.h"
 #include "sensor/motionSensor.h"
 #include "weight/weightData.h"
@@ -17,9 +16,6 @@ namespace webSocket
     enum class MessageType : uint8_t
     {
         BATTERY_LEVEL,
-
-        GET_DEBUG,
-        SET_DEBUG,
 
         GET_TYPE,
         SET_TYPE,
@@ -68,22 +64,6 @@ namespace webSocket
         server.enable(true);
     }
 
-    uint8_t onClientRequestGetDebug(uint8_t *data, uint8_t dataOffset)
-    {
-        if (_clientMessageFlags.count(MessageType::SET_DEBUG) == 0)
-        {
-            _clientMessageFlags[MessageType::GET_DEBUG] = true;
-        }
-        return dataOffset;
-    }
-    uint8_t onClientRequestSetDebug(uint8_t *data, uint8_t dataOffset)
-    {
-        auto enableDebug = (bool)data[dataOffset++];
-        debug::setEnabled(enableDebug);
-        _clientMessageFlags.erase(MessageType::GET_DEBUG);
-        _clientMessageFlags[MessageType::SET_DEBUG] = true;
-        return dataOffset;
-    }
     uint8_t onClientRequestGetType(uint8_t *data, uint8_t dataOffset)
     {
         if (_clientMessageFlags.count(MessageType::SET_TYPE) == 0)
@@ -182,12 +162,6 @@ namespace webSocket
 
                     switch (messageType)
                     {
-                    case MessageType::GET_DEBUG:
-                        dataOffset = onClientRequestGetDebug(data, dataOffset);
-                        break;
-                    case MessageType::SET_DEBUG:
-                        dataOffset = onClientRequestSetDebug(data, dataOffset);
-                        break;
                     case MessageType::GET_TYPE:
                         dataOffset = onClientRequestGetType(data, dataOffset);
                         break;
@@ -338,10 +312,6 @@ namespace webSocket
                 case MessageType::BATTERY_LEVEL:
                     // FIX LATER
                     _clientMessageData[_clientMessageDataSize++] = 100;
-                    break;
-                case MessageType::GET_DEBUG:
-                case MessageType::SET_DEBUG:
-                    _clientMessageData[_clientMessageDataSize++] = (uint8_t)debug::getEnabled();
                     break;
                 case MessageType::GET_TYPE:
                 case MessageType::SET_TYPE:

@@ -1,7 +1,6 @@
 #include "definitions.h"
 #include "ble.h"
 
-#include "bleDebug.h"
 #include "information/bleType.h"
 #include "information/bleName.h"
 #include "sensor/bleMotionCalibration.h"
@@ -55,7 +54,6 @@ namespace ble
         pAdvertising->addServiceUUID(pService->getUUID());
         pAdvertising->setScanResponse(true);
 
-        bleDebug::setup();
         bleType::setup();
         bleName::setup();
         bleMotionCalibration::setup();
