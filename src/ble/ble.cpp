@@ -2,7 +2,6 @@
 #include "ble.h"
 
 #include "bleDebug.h"
-#include "bleErrorMessage.h"
 #include "information/bleType.h"
 #include "information/bleName.h"
 #include "sensor/bleMotionCalibration.h"
@@ -11,6 +10,7 @@
 #include "bleBattery.h"
 #include "wifi/bleWifi.h"
 #include "BLEPeer.h"
+#include "bleFileTransfer.h"
 
 namespace ble
 {
@@ -46,7 +46,7 @@ namespace ble
     void setup()
     {
         BLEDevice::init(bleName::getName()->c_str());
-        //BLEDevice::setPower(ESP_PWR_LVL_P9);
+        BLEDevice::setPower(ESP_PWR_LVL_P9);
         pServer = BLEDevice::createServer();
         pServer->setCallbacks(new ServerCallbacks());
         pService = pServer->createService(BLEUUID(GENERATE_UUID("0000")), 256);
@@ -56,7 +56,6 @@ namespace ble
         pAdvertising->setScanResponse(true);
 
         bleDebug::setup();
-        bleErrorMessage::setup();
         bleType::setup();
         bleName::setup();
         bleMotionCalibration::setup();
@@ -64,8 +63,8 @@ namespace ble
         bleWeightData::setup();
         bleWifi::setup();
         bleBattery::setup();
-
         BLEPeer::setup();
+        bleFileTransfer::setup();
 
         start();
     }

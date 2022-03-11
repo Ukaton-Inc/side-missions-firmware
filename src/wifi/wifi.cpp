@@ -36,8 +36,6 @@ namespace wifi
         _autoConnect = preferences.getBool("autoConnect", _autoConnect);
         preferences.end();
 
-        WiFi.mode(WIFI_STA);
-
         if (_autoConnect)
         {
             connect();
@@ -90,6 +88,7 @@ namespace wifi
 
     void connect()
     {
+        WiFi.mode(WIFI_STA);
         WiFi.begin(ssid.c_str(), password.c_str());
         setAutoConnect(true);
     }
@@ -106,6 +105,7 @@ namespace wifi
             Serial.println("already disconnected");
         }
 
+        WiFi.mode(WIFI_MODE_NULL);
         setAutoConnect(false);
     }
 

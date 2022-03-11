@@ -204,7 +204,7 @@ bool BLEPeer::onClientConnectionParamsUpdateRequest(NimBLEClient *pClient, const
     { /** Number of intervals allowed to skip */
         return false;
     }
-    else if (params->supervision_timeout > 100)
+    else if (params->supervision_timeout > 200)
     { /** 10ms units */
         return false;
     }
