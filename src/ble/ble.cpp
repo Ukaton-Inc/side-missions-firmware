@@ -10,6 +10,7 @@
 #include "wifi/bleWifi.h"
 #include "BLEPeer.h"
 #include "bleFileTransfer.h"
+#include "bleFirmwareUpdate.h"
 
 namespace ble
 {
@@ -63,6 +64,7 @@ namespace ble
         bleBattery::setup();
         BLEPeer::setup();
         bleFileTransfer::setup();
+        bleFirmwareUpdate::setup();
 
         start();
     }

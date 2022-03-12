@@ -100,8 +100,6 @@ namespace bleFileTransfer
     {
         void onWrite(BLECharacteristic *pCharacteristic)
         {
-            Serial.printf("2valid? %d, %d\n", &file_buffers[0][0] == nullptr, &file_buffers[1][0] == nullptr);
-
             uint8_t command_value;
             uint8_t *command_value_data = (uint8_t *)pCharacteristic->getValue().data();
             command_value = command_value_data[0];
@@ -143,8 +141,6 @@ namespace bleFileTransfer
         file_buffers[0] = (uint8_t *)malloc(file_maximum_byte_count * sizeof(uint8_t));
         file_buffers[1] = (uint8_t *)malloc(file_maximum_byte_count * sizeof(uint8_t));
 
-        Serial.printf("valid? %d, %d\n", &file_buffers[0][0] == nullptr, &file_buffers[1][0] == nullptr);
-
         pFileBlockCharacteristic = ble::createCharacteristic(GENERATE_UUID("a000"), NIMBLE_PROPERTY::WRITE, "File Block");
         pFileLengthCharacteristic = ble::createCharacteristic(GENERATE_UUID("a001"), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE, "File Length");
         pFileMaximumLengthCharacteristic = ble::createCharacteristic(GENERATE_UUID("a002"), NIMBLE_PROPERTY::READ, "Maximum File Length");
@@ -172,8 +168,6 @@ namespace bleFileTransfer
     void startFileTransfer()
     {
         Serial.println("start file transfer");
-
-        Serial.printf("1valid? %d, %d\n", &file_buffers[0][0] == nullptr, &file_buffers[1][0] == nullptr);
 
         if (in_progress_file_buffer != nullptr)
         {
@@ -257,9 +251,6 @@ namespace bleFileTransfer
 
         switch (fileTransferType)
         {
-        case FIRMWARE:
-            // FILL
-            break;
         case WEIGHT_DETECTION_MODEL:
             // FILL
             break;

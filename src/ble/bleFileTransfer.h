@@ -7,14 +7,13 @@
 
 namespace bleFileTransfer
 {
-    constexpr uint16_t file_maximum_byte_count = (25 * 1024); // 25 kb
-    constexpr uint8_t file_block_byte_count = 128;
+    constexpr uint32_t file_maximum_byte_count = (25 * 1024); // 25 kb
+    constexpr uint16_t file_block_byte_count = 256;
 
     extern uint8_t *file_buffers[2];
 
     typedef enum: uint8_t {
-        FIRMWARE = 0,
-        WEIGHT_DETECTION_MODEL,
+        WEIGHT_DETECTION_MODEL = 0,
         GENERIC_TF_LITE_MODEL_FILE,
         COUNT
     } FileTransferType;
