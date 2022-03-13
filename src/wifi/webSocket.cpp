@@ -11,6 +11,8 @@
 #include "weight/weightData.h"
 #include "battery.h"
 
+#include <Update.h>
+
 namespace webSocket
 {
     enum class MessageType : uint8_t
@@ -33,8 +35,17 @@ namespace webSocket
         GET_WEIGHT_DATA_DELAY,
         SET_WEIGHT_DATA_DELAY,
 
-        WEIGHT_DATA
+        WEIGHT_DATA,
+
+        FIRMWARE_UPDATE
     };
+
+    enum class FileType : uint8_t
+    {
+        NONE,
+        FIRMWARE,
+    };
+    FileType incomingFileType = FileType::NONE;
 
     AsyncWebSocket server("/ws");
     AsyncWebSocketClient *client = nullptr;
@@ -126,11 +137,37 @@ namespace webSocket
     }
     uint8_t onClientRequestSetWeightDataDelay(uint8_t *data, uint8_t dataOffset)
     {
-        uint16_t delay = (((uint16_t)data[dataOffset+1]) << 8) | ((uint16_t)data[dataOffset]);
+        uint16_t delay = (((uint16_t)data[dataOffset + 1]) << 8) | ((uint16_t)data[dataOffset]);
         dataOffset += sizeof(delay);
         weightData::setDelay(delay);
         _clientMessageFlags.erase(MessageType::GET_WEIGHT_DATA_DELAY);
         _clientMessageFlags[MessageType::SET_WEIGHT_DATA_DELAY] = true;
+        return dataOffset;
+    }
+    uint8_t onClientRequestFirmwareUpdate(uint8_t *data, uint8_t dataOffset)
+    {
+        uint32_t firmwareSize = (((uint32_t)data[dataOffset + 3]) << 24) | (((uint32_t)data[dataOffset + 2]) << 16) | ((uint32_t)data[dataOffset + 1])  << 8 | ((uint32_t)data[dataOffset]);
+        dataOffset += sizeof(firmwareSize);
+
+        Serial.printf("firmware size: %u\n", firmwareSize);
+
+        if (incomingFileType == FileType::NONE)
+        {
+            if (Update.isRunning())
+            {
+                Update.abort();
+            }
+
+            if (Update.begin(firmwareSize);)
+            {
+                incomingFileType = FileType::FIRMWARE;
+            }
+            else
+            {
+                Update.printError(Serial);
+            }
+        }
+
         return dataOffset;
     }
     void _onWebSocketMessage(AsyncWebSocketClient *_client, void *arg, uint8_t *data, size_t len)
@@ -186,6 +223,9 @@ namespace webSocket
                     case MessageType::SET_WEIGHT_DATA_DELAY:
                         dataOffset = onClientRequestSetWeightDataDelay(data, dataOffset);
                         break;
+                    case MessageType::FIRMWARE_UPDATE:
+                        dataOffset = onClientRequestFirmwareUpdate(data, dataOffset);
+                        break;
                     default:
                         Serial.print("uncaught websocket message type: ");
                         Serial.println((uint8_t)messageType);
@@ -195,6 +235,65 @@ namespace webSocket
                 }
 
                 shouldSendToClient = shouldSendToClient || (_clientMessageFlags.size() > 0);
+            }
+            else
+            {
+                if (info->index == 0)
+                {
+                    if (info->num == 0)
+                    {
+                        Serial.printf("ws[%s][%u] %s-message start\n", server.url(), client->id(), (info->message_opcode == WS_TEXT) ? "text" : "binary");
+                    }
+                    Serial.printf("ws[%s][%u] frame[%u] start[%llu]\n", server.url(), client->id(), info->num, info->len);
+                }
+
+                Serial.printf("ws[%s][%u] frame[%u] %s[%llu - %llu]: ", server.url(), client->id(), info->num, (info->message_opcode == WS_TEXT) ? "text" : "binary", info->index, info->index + len);
+
+                switch (incomingFileType)
+                {
+                case FileType::FIRMWARE:
+                    Update.write(data, len);
+                    break;
+                default:
+                    break;
+                }
+
+                if ((info->index + len) == info->len)
+                {
+                    Serial.printf("ws[%s][%u] frame[%u] end[%llu]\n", server.url(), client->id(), info->num, info->len);
+                    if (info->final)
+                    {
+                        Serial.printf("ws[%s][%u] %s-message end\n", server.url(), client->id(), (info->message_opcode == WS_TEXT) ? "text" : "binary");
+
+                        switch (incomingFileType)
+                        {
+                        case FileType::FIRMWARE:
+                            if (Update.isRunning())
+                            {
+                                Serial.println("OTA done!");
+                                if (Update.end(true))
+                                {
+                                    if (Update.isFinished())
+                                    {
+                                        Serial.println("Update successfully completed. Rebooting.");
+                                        ESP.restart();
+                                    }
+                                    else
+                                    {
+                                        Serial.println("Update not finished? Something went wrong!");
+                                    }
+                                }
+                                else
+                                {
+                                    Update.printError(Serial);
+                                }
+                            }
+                            break;
+                        default:
+                            break;
+                        }
+                    }
+                }
             }
         }
     }
@@ -332,7 +431,7 @@ namespace webSocket
                     break;
                 case MessageType::GET_SENSOR_DATA_CONFIGURATIONS:
                 case MessageType::SET_SENSOR_DATA_CONFIGURATIONS:
-                    memcpy(&_clientMessageData[_clientMessageDataSize], (uint8_t *) sensorData::configurations.flattened.data(), sizeof(uint16_t) * sensorData::configurations.flattened.max_size());
+                    memcpy(&_clientMessageData[_clientMessageDataSize], (uint8_t *)sensorData::configurations.flattened.data(), sizeof(uint16_t) * sensorData::configurations.flattened.max_size());
                     _clientMessageDataSize += sizeof(uint16_t) * sensorData::configurations.flattened.max_size();
                     break;
                 case MessageType::SENSOR_DATA:
@@ -356,14 +455,14 @@ namespace webSocket
                 case MessageType::SET_WEIGHT_DATA_DELAY:
                 {
                     auto delay = weightData::getDelay();
-                    memcpy(&_clientMessageData[_clientMessageDataSize], (uint8_t *) &delay, sizeof(delay));
+                    memcpy(&_clientMessageData[_clientMessageDataSize], (uint8_t *)&delay, sizeof(delay));
                     _clientMessageDataSize += sizeof(delay);
                 }
                 break;
                 case MessageType::WEIGHT_DATA:
                 {
                     auto weight = weightData::getWeight();
-                    memcpy(&_clientMessageData[_clientMessageDataSize], (uint8_t *) &weight, sizeof(weight));
+                    memcpy(&_clientMessageData[_clientMessageDataSize], (uint8_t *)&weight, sizeof(weight));
                     _clientMessageDataSize += sizeof(weight);
                 }
                 break;
