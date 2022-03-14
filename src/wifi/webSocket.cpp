@@ -155,7 +155,7 @@ namespace webSocket
     }
     uint8_t onClientRequestFirmwareUpdate(uint8_t *data, uint8_t dataOffset)
     {
-        uint32_t firmwareSize = (((uint32_t)data[dataOffset + 3]) << 24) | (((uint32_t)data[dataOffset + 2]) << 16) | ((uint32_t)data[dataOffset + 1])  << 8 | ((uint32_t)data[dataOffset]);
+        uint32_t firmwareSize = (((uint32_t)data[dataOffset + 3]) << 24) | (((uint32_t)data[dataOffset + 2]) << 16) | ((uint32_t)data[dataOffset + 1]) << 8 | ((uint32_t)data[dataOffset]);
         dataOffset += sizeof(firmwareSize);
 
         Serial.printf("firmware size: %u\n", firmwareSize);
@@ -254,12 +254,18 @@ namespace webSocket
                 {
                     if (info->num == 0)
                     {
-                        //Serial.printf("ws[%s][%u] %s-message start\n", server.url(), client->id(), (info->message_opcode == WS_TEXT) ? "text" : "binary");
+#if DEBUG
+                        Serial.printf("ws[%s][%u] %s-message start\n", server.url(), client->id(), (info->message_opcode == WS_TEXT) ? "text" : "binary");
+#endif
                     }
-                    //Serial.printf("ws[%s][%u] frame[%u] start[%llu]\n", server.url(), client->id(), info->num, info->len);
+#if DEBUG
+                    Serial.printf("ws[%s][%u] frame[%u] start[%llu]\n", server.url(), client->id(), info->num, info->len);
+#endif
                 }
 
-                //Serial.printf("ws[%s][%u] frame[%u] %s[%llu - %llu]: ", server.url(), client->id(), info->num, (info->message_opcode == WS_TEXT) ? "text" : "binary", info->index, info->index + len);
+#if DEBUG
+                Serial.printf("ws[%s][%u] frame[%u] %s[%llu - %llu]: ", server.url(), client->id(), info->num, (info->message_opcode == WS_TEXT) ? "text" : "binary", info->index, info->index + len);
+#endif
 
                 switch (incomingFileType)
                 {
@@ -272,10 +278,14 @@ namespace webSocket
 
                 if ((info->index + len) == info->len)
                 {
-                    //Serial.printf("ws[%s][%u] frame[%u] end[%llu]\n", server.url(), client->id(), info->num, info->len);
+#if DEBUG
+                    Serial.printf("ws[%s][%u] frame[%u] end[%llu]\n", server.url(), client->id(), info->num, info->len);
+#endif
                     if (info->final)
                     {
-                        //Serial.printf("ws[%s][%u] %s-message end\n", server.url(), client->id(), (info->message_opcode == WS_TEXT) ? "text" : "binary");
+#if DEBUG
+                        Serial.printf("ws[%s][%u] %s-message end\n", server.url(), client->id(), (info->message_opcode == WS_TEXT) ? "text" : "binary");
+#endif
 
                         switch (incomingFileType)
                         {
