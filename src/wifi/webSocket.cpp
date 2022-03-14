@@ -37,6 +37,7 @@ namespace webSocket
 
         WEIGHT_DATA,
 
+        GET_FIRMWARE_VERSION,
         FIRMWARE_UPDATE
     };
 
@@ -144,6 +145,14 @@ namespace webSocket
         _clientMessageFlags[MessageType::SET_WEIGHT_DATA_DELAY] = true;
         return dataOffset;
     }
+    uint8_t onClientRequestGetFirmwareVersion(uint8_t *data, uint8_t dataOffset)
+    {
+        if (_clientMessageFlags.count(MessageType::GET_FIRMWARE_VERSION) == 0)
+        {
+            _clientMessageFlags[MessageType::GET_FIRMWARE_VERSION] = true;
+        }
+        return dataOffset;
+    }
     uint8_t onClientRequestFirmwareUpdate(uint8_t *data, uint8_t dataOffset)
     {
         uint32_t firmwareSize = (((uint32_t)data[dataOffset + 3]) << 24) | (((uint32_t)data[dataOffset + 2]) << 16) | ((uint32_t)data[dataOffset + 1])  << 8 | ((uint32_t)data[dataOffset]);
@@ -158,7 +167,7 @@ namespace webSocket
                 Update.abort();
             }
 
-            if (Update.begin(firmwareSize);)
+            if (Update.begin(firmwareSize))
             {
                 incomingFileType = FileType::FIRMWARE;
             }
@@ -222,6 +231,9 @@ namespace webSocket
                         break;
                     case MessageType::SET_WEIGHT_DATA_DELAY:
                         dataOffset = onClientRequestSetWeightDataDelay(data, dataOffset);
+                        break;
+                    case MessageType::GET_FIRMWARE_VERSION:
+                        dataOffset = onClientRequestGetFirmwareVersion(data, dataOffset);
                         break;
                     case MessageType::FIRMWARE_UPDATE:
                         dataOffset = onClientRequestFirmwareUpdate(data, dataOffset);
@@ -395,6 +407,7 @@ namespace webSocket
         }
     }
 
+    std::string firmwareVersion = "0.0";
     void messageLoop()
     {
         if (shouldSendToClient)
@@ -466,6 +479,11 @@ namespace webSocket
                     _clientMessageDataSize += sizeof(weight);
                 }
                 break;
+                case MessageType::GET_FIRMWARE_VERSION:
+                    _clientMessageData[_clientMessageDataSize++] = firmwareVersion.length();
+                    memcpy(&_clientMessageData[_clientMessageDataSize], firmwareVersion.c_str(), firmwareVersion.length());
+                    _clientMessageDataSize += firmwareVersion.length();
+                    break;
                 default:
                     Serial.print("uncaught client message type: ");
                     Serial.println((uint8_t)messageType);
