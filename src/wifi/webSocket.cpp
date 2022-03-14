@@ -254,12 +254,12 @@ namespace webSocket
                 {
                     if (info->num == 0)
                     {
-                        Serial.printf("ws[%s][%u] %s-message start\n", server.url(), client->id(), (info->message_opcode == WS_TEXT) ? "text" : "binary");
+                        //Serial.printf("ws[%s][%u] %s-message start\n", server.url(), client->id(), (info->message_opcode == WS_TEXT) ? "text" : "binary");
                     }
-                    Serial.printf("ws[%s][%u] frame[%u] start[%llu]\n", server.url(), client->id(), info->num, info->len);
+                    //Serial.printf("ws[%s][%u] frame[%u] start[%llu]\n", server.url(), client->id(), info->num, info->len);
                 }
 
-                Serial.printf("ws[%s][%u] frame[%u] %s[%llu - %llu]: ", server.url(), client->id(), info->num, (info->message_opcode == WS_TEXT) ? "text" : "binary", info->index, info->index + len);
+                //Serial.printf("ws[%s][%u] frame[%u] %s[%llu - %llu]: ", server.url(), client->id(), info->num, (info->message_opcode == WS_TEXT) ? "text" : "binary", info->index, info->index + len);
 
                 switch (incomingFileType)
                 {
@@ -272,10 +272,10 @@ namespace webSocket
 
                 if ((info->index + len) == info->len)
                 {
-                    Serial.printf("ws[%s][%u] frame[%u] end[%llu]\n", server.url(), client->id(), info->num, info->len);
+                    //Serial.printf("ws[%s][%u] frame[%u] end[%llu]\n", server.url(), client->id(), info->num, info->len);
                     if (info->final)
                     {
-                        Serial.printf("ws[%s][%u] %s-message end\n", server.url(), client->id(), (info->message_opcode == WS_TEXT) ? "text" : "binary");
+                        //Serial.printf("ws[%s][%u] %s-message end\n", server.url(), client->id(), (info->message_opcode == WS_TEXT) ? "text" : "binary");
 
                         switch (incomingFileType)
                         {
