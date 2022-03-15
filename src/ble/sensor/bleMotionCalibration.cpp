@@ -16,7 +16,7 @@ namespace bleMotionCalibration {
 
     unsigned long lastCalibrationUpdateTime;
     void loop() {
-        if (lastCalibrationUpdateTime != motionSensor::lastCalibrationUpdateTime && !webSocket::isConnectedToClient()) {
+        if (lastCalibrationUpdateTime != motionSensor::lastCalibrationUpdateTime && !webSocket::isConnectedToClient() && pCharacteristic->getSubscribedCount() > 0) {
             lastCalibrationUpdateTime = motionSensor::lastCalibrationUpdateTime;
             updateDataCharacteristic(true);
         }

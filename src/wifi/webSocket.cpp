@@ -369,9 +369,12 @@ namespace webSocket
                     break;
                 case MessageType::SENSOR_DATA:
                 {
+                    // ignore timestamp
+                    /*
                     uint16_t timestamp = (uint16_t)lastSensorDataUpdateTime;
                     MEMCPY(&_clientMessageData[_clientMessageDataSize], &timestamp, sizeof(timestamp));
                     _clientMessageDataSize += sizeof(timestamp);
+                    */
 
                     _clientMessageData[_clientMessageDataSize++] = (uint8_t)sensorData::SensorType::MOTION;
                     _clientMessageData[_clientMessageDataSize++] = sensorData::motionDataSize;

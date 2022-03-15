@@ -163,12 +163,17 @@ namespace sensorData
 
     uint8_t motionData[(uint8_t)motionSensor::DataSize::TOTAL + (uint8_t)motionSensor::DataType::COUNT]{0};
     uint8_t motionDataSize = 0;
+    uint8_t motionDataBitmask = 0;
+
     uint8_t pressureData[(uint8_t)pressureSensor::DataSize::TOTAL + (uint8_t)pressureSensor::DataType::COUNT]{0};
     uint8_t pressureDataSize = 0;
+    uint8_t pressureDataBitmask = 0;
+
     void clearMotionData()
     {
         memset(motionData, 0, sizeof(motionData));
         motionDataSize = 0;
+        motionDataBitmask = 0;
     }
     void updateMotionData()
     {
@@ -216,9 +221,10 @@ namespace sensorData
 
                 if (dataSize > 0)
                 {
-                    motionData[motionDataSize++] = dataTypeIndex;
+                    //motionData[motionDataSize++] = dataTypeIndex;
                     memcpy(&motionData[motionDataSize], data, dataSize);
                     motionDataSize += dataSize;
+                    bitSet(motionDataBitmask, dataTypeIndex);
                 }
             }
         }
@@ -227,6 +233,7 @@ namespace sensorData
     {
         memset(pressureData, 0, sizeof(pressureData));
         pressureDataSize = 0;
+        pressureDataBitmask = 0;
     }
     void updatePressureData()
     {
@@ -283,9 +290,10 @@ namespace sensorData
 
                 if (dataSize > 0)
                 {
-                    pressureData[pressureDataSize++] = dataTypeIndex;
+                    //pressureData[pressureDataSize++] = dataTypeIndex;
                     memcpy(&pressureData[pressureDataSize], data, dataSize);
                     pressureDataSize += dataSize;
+                    bitSet(pressureDataBitmask, dataTypeIndex);
                 }
             }
         }

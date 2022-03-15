@@ -21,8 +21,11 @@ namespace sensorData
     
     extern uint8_t motionData[(uint8_t)motionSensor::DataSize::TOTAL + (uint8_t)motionSensor::DataType::COUNT];
     extern uint8_t motionDataSize;
+    extern uint8_t motionDataBitmask;
+    
     extern uint8_t pressureData[(uint8_t)pressureSensor::DataSize::TOTAL + (uint8_t)pressureSensor::DataType::COUNT];
     extern uint8_t pressureDataSize;
+    extern uint8_t pressureDataBitmask;
 
     extern unsigned long lastDataUpdateTime;
     void loop();
