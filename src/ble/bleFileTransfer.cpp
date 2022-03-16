@@ -20,11 +20,15 @@ namespace bleFileTransfer
     {
         void onWrite(BLECharacteristic *pCharacteristic)
         {
-            uint8_t *data = (uint8_t *)pCharacteristic->getValue().data();
-            unsigned char rawFileTransferType = data[0];
-            Serial.print("set file transfer type: ");
-            Serial.println(rawFileTransferType);
-            fileTransferType = (FileType)rawFileTransferType;
+            auto rawFileTransferType = (uint8_t) pCharacteristic->getValue().data()[0];
+            Serial.printf("got file transfer type: %d\n", rawFileTransferType);
+
+            if (rawFileTransferType < FileType::COUNT) {
+                fileTransferType = (FileType)rawFileTransferType;
+            }
+            else {
+                Serial.println("invalid file transfer type");
+            }
         }
     };
 
@@ -33,9 +37,9 @@ namespace bleFileTransfer
         void onWrite(BLECharacteristic *pCharacteristic)
         {
             auto command = (Command) pCharacteristic->getValue().data()[0];
+            Serial.printf("got file transfer command: %d\n", (uint8_t) command);
 
-            Serial.print("set file transfer command: ");
-            Serial.println((uint8_t) command);
+            // FILL - update fileTransferStatus
 
             switch (command)
             {
@@ -62,7 +66,8 @@ namespace bleFileTransfer
     {
         void onWrite(BLECharacteristic *pCharacteristic)
         {
-            uint8_t *data = (uint8_t *)pCharacteristic->getValue().data();
+            auto data = (uint8_t *) pCharacteristic->getValue().data();
+            Serial.println("got data");
         }
     };
 
@@ -76,7 +81,7 @@ namespace bleFileTransfer
 
         pFileTypeCharacteristic->setCallbacks(new FileTypeCharacteristicCallbacks());
         pCommandCharacteristic->setCallbacks(new CommandCharacteristicCallbacks());
-        pDataCharacteristic->setCallbacks(new CommandCharacteristicCallbacks());
+        pDataCharacteristic->setCallbacks(new DataCharacteristicCallbacks());
 
         pFileTypeCharacteristic->setValue((uint8_t) fileTransferType);
         pStatusCharacteristic->setValue((uint8_t) fileTransferStatus);
