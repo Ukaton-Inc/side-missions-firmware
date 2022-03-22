@@ -9,7 +9,7 @@ namespace bleMotionCalibration {
     }
     void updateDataCharacteristic(bool notify = false) {
         pCharacteristic->setValue(motionSensor::calibration, sizeof(motionSensor::calibration));
-        if (notify) {
+        if (notify && pCharacteristic->getSubscribedCount() > 0) {
             pCharacteristic->notify();
         }
     }
