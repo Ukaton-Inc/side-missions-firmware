@@ -74,7 +74,7 @@ namespace bleSensorData
 
     void loop()
     {
-        if (lastDataUpdateTime != sensorData::lastDataUpdateTime && (sensorData::motionDataSize + sensorData::pressureDataSize > 0) && !webSocket::isConnectedToClient())
+        if (lastDataUpdateTime != sensorData::lastDataUpdateTime && pDataCharacteristic->getSubscribedCount() > 0 && (sensorData::motionDataSize + sensorData::pressureDataSize > 0) && !webSocket::isConnectedToClient())
         {
             lastDataUpdateTime = sensorData::lastDataUpdateTime;
             updateDataCharacteristic();

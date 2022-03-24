@@ -44,6 +44,7 @@ namespace ble
     void setup()
     {
         BLEDevice::init(bleName::getName()->c_str());
+        BLEDevice::setPower(ESP_PWR_LVL_P9);
         pServer = BLEDevice::createServer();
         pServer->setCallbacks(new ServerCallbacks());
         pService = pServer->createService(BLEUUID(GENERATE_UUID("0000")), 256);
