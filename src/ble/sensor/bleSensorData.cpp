@@ -48,14 +48,13 @@ namespace bleSensorData
         dataSize += sizeof(timestamp);
         */
 
-        data[dataSize++] = sensorData::motionDataBitmask;
-        data[dataSize++] = sensorData::pressureDataBitmask;
-        
+        data[dataSize++] = sensorData::motionDataBitmask;        
         // data[dataSize++] = (uint8_t) sensorData::SensorType::MOTION;
         // data[dataSize++] = sensorData::motionDataSize;
         memcpy(&data[dataSize], sensorData::motionData, sensorData::motionDataSize);
         dataSize += sensorData::motionDataSize;
 
+        data[dataSize++] = sensorData::pressureDataBitmask;
         // data[dataSize++] = (uint8_t) sensorData::SensorType::PRESSURE;
         // data[dataSize++] = sensorData::pressureDataSize;
         memcpy(&data[dataSize], sensorData::pressureData, sensorData::pressureDataSize);
