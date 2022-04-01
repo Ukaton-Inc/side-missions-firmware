@@ -79,10 +79,10 @@ namespace bleWifi
         auto ip = WiFi.localIP();
         auto ipString = ip.toString();
 
-        pIPAddressCharacteristic->setValue(ipString);
+        pIPAddressCharacteristic->setValue((uint8_t *)ipString.c_str(), ipString.length());
         pMACAddressCharacteristic = ble::createCharacteristic(GENERATE_UUID("7006"), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY, "wifi MAC address");
         auto macAddress = WiFi.macAddress();
-        pMACAddressCharacteristic->setValue(macAddress);
+        pMACAddressCharacteristic->setValue((uint8_t *)macAddress.c_str(), macAddress.length());
     }
 
     constexpr uint16_t check_connection_delay_ms = 1000;
@@ -104,12 +104,12 @@ namespace bleWifi
             {
                 auto ip = WiFi.localIP();
                 auto ipString = ip.toString();
-                pIPAddressCharacteristic->setValue(ipString);
+                pIPAddressCharacteristic->setValue((uint8_t *)ipString.c_str(), ipString.length());
                 pIPAddressCharacteristic->notify();
 
                 auto macAddress = WiFi.macAddress();
                 pMACAddressCharacteristic->setValue(macAddress);
-                pMACAddressCharacteristic->notify();
+                pMACAddressCharacteristic->setValue((uint8_t *)macAddress.c_str(), macAddress.length());
 
             }
         }
