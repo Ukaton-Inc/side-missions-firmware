@@ -115,8 +115,8 @@ namespace bleFileTransfer
         pDataCharacteristic->setCallbacks(new DataCharacteristicCallbacks());
 
         pMaxFileSizeCharacteristic->setValue(max_file_size);
-        pFileTypeCharacteristic->setValue((uint8_t) fileTransferType);
+        pFileTypeCharacteristic->setValue(fileTransferType);
         pFileSizeCharacteristic->setValue(fileSize);
-        pStatusCharacteristic->setValue((uint8_t) fileTransferStatus);
+        pStatusCharacteristic->setValue(fileTransferStatus);
     }
 } // namespace fileTransfer

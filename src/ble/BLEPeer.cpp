@@ -58,7 +58,7 @@ void BLEPeer::_setup(uint8_t _index)
     formatBLECharacteristicUUID(uuidBuffer, 3);
     formatBLECharacteristicName(nameBuffer, "type");
     pTypeCharacteristic = ble::createCharacteristic(uuidBuffer, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE, nameBuffer);
-    pTypeCharacteristic->setValue((uint8_t)_type);
+    pTypeCharacteristic->setValue(_type);
     pTypeCharacteristic->setCallbacks(new CharacteristicCallbacks(this));
 
     formatBLECharacteristicUUID(uuidBuffer, 4);
@@ -345,7 +345,7 @@ void BLEPeer::changeRemoteTypeCharacteristic()
     _type = (type::Type)pRemoteTypeCharacteristic->readValue().data()[0];
     Serial.printf("read remote type %d\n", (uint8_t)_type);
 
-    pTypeCharacteristic->setValue((uint8_t)_type);
+    pTypeCharacteristic->setValue(_type);
     Serial.println("set type value!");
 }
 void BLEPeer::changeRemoteSensorConfigurationCharacteristic()
@@ -356,7 +356,7 @@ void BLEPeer::changeRemoteSensorConfigurationCharacteristic()
 
     Serial.println("writing to local sensor configuration...");
     sensorConfigurationCharacteristicValue = pRemoteSensorConfigurationCharacteristic->readValue();
-    pSensorConfigurationCharacteristic->setValue((uint8_t *)sensorConfigurationCharacteristicValue.data(), sensorConfigurationCharacteristicValue.length());
+    pSensorConfigurationCharacteristic->setValue(sensorConfigurationCharacteristicValue);
     Serial.println("updated to local sensor configuration!");
 }
 
@@ -521,7 +521,7 @@ void BLEPeer::changeNameCharacteristic()
 }
 void BLEPeer::changeTypeCharacteristic()
 {
-    pTypeCharacteristic->setValue((uint8_t)_type);
+    pTypeCharacteristic->setValue(_type);
 }
 void BLEPeer::changeConnectionCharacteristic(bool notify)
 {
