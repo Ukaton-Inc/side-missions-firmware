@@ -35,11 +35,13 @@ namespace bleFileTransfer
 
     extern BLECharacteristic *pMaxFileSizeCharacteristic;
     extern BLECharacteristic *pFileTypeCharacteristic;
+    extern BLECharacteristic *pFileSizeCharacteristic;
     extern BLECharacteristic *pCommandCharacteristic;
     extern BLECharacteristic *pStatusCharacteristic;
     extern BLECharacteristic *pDataCharacteristic;
 
     class FileTypeCharacteristicCallbacks;
+    class FileSizeCharacteristicCallbacks;
     class CommandCharacteristicCallbacks;
     class DataCharacteristicCallbacks;
 

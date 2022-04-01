@@ -63,7 +63,7 @@ namespace bleFirmwareUpdate
         pVersionCharacteristic->setValue(version);
 
         pMaxSizeCharacteristic = ble::createCharacteristic(GENERATE_UUID("b001"), NIMBLE_PROPERTY::READ, "max firmware size");
-        pMaxSizeCharacteristic->setValue((uint8_t *)&max_size, sizeof(max_size));
+        pMaxSizeCharacteristic->setValue(max_size)
 
         pDataCharacteristic = ble::createCharacteristic(GENERATE_UUID("b002"), NIMBLE_PROPERTY::WRITE, "firmware data");
         pDataCharacteristic->setCallbacks(new DataCharacteristicCallbacks());
