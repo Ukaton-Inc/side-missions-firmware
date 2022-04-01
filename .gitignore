@@ -5,8 +5,8 @@
 .vscode/ipch
 .DS_Store
 TODO
-TODO_NEXT.txt
 BOSE AR INFO
 trash
-IP.txt
-MAC.txt
+*.icloud
+*.txt
+notes
