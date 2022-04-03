@@ -97,6 +97,7 @@ namespace ble
             bleWeightData::loop();
             bleBattery::loop();
             bleWifi::loop();
+            bleFileTransfer::loop();
         }
         BLEPeer::loop();
     }
