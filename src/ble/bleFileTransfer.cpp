@@ -1,8 +1,6 @@
 #include "definitions.h"
 #include "bleFileTransfer.h"
 
-#define USE_LittleFS
-
 #include <FS.h>
 #ifdef USE_LittleFS
 #define SPIFFS LITTLEFS
@@ -10,8 +8,6 @@
 #else
 #include <SPIFFS.h>
 #endif
-
-#define FORMAT_SPIFFS_IF_FAILED true
 
 namespace bleFileTransfer
 {

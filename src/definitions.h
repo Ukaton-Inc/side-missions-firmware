@@ -6,6 +6,9 @@
 
 #define DEFAUlT_NAME "Ukaton Mission"
 
+#define USE_LittleFS
+#define FORMAT_SPIFFS_IF_FAILED true
+
 #define CPU_FREQUENCY_MHZ 80
 #define ENABLE_MOVE_TO_WAKE false
 

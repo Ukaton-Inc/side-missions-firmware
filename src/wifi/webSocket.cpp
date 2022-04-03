@@ -11,10 +11,20 @@
 #include "weight/weightData.h"
 #include "battery.h"
 
+#include <FS.h>
+#ifdef USE_LittleFS
+#define SPIFFS LITTLEFS
+#include <LITTLEFS.h>
+#else
+#include <SPIFFS.h>
+#endif
+
 #include <Update.h>
 
 namespace webSocket
 {
+    constexpr uint16_t max_message_size = 2930;
+
     enum class MessageType : uint8_t
     {
         BATTERY_LEVEL,
@@ -37,22 +47,90 @@ namespace webSocket
 
         WEIGHT_DATA,
 
+        RECEIVE_FILE,
+        SEND_FILE,
+        REMOVE_FILE,
+        FORMAT_FILESYSTEM,
+
         GET_FIRMWARE_VERSION,
         FIRMWARE_UPDATE
     };
-
-    enum class FileType : uint8_t
-    {
-        NONE,
-        FIRMWARE,
-    };
-    FileType incomingFileType = FileType::NONE;
 
     AsyncWebSocket server("/ws");
     AsyncWebSocketClient *client = nullptr;
     bool isConnectedToClient()
     {
         return server.count() > 0 && client != nullptr;
+    }
+
+    enum class FileType : uint8_t
+    {
+        NONE,
+        FIRMWARE,
+        FILE
+    };
+    FileType incomingFileType = FileType::NONE;
+
+    File file;
+    std::string filePath = "";
+    uint32_t fileSize = 0;
+    uint32_t bytesTransferred = 0;
+
+    void removeFile()
+    {
+        Serial.println("removing file...");
+
+        if (!SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED))
+        {
+            Serial.println("SPIFFS Mount Failed");
+            return;
+        }
+
+        if (SPIFFS.exists(filePath.c_str()))
+        {
+            SPIFFS.remove(filePath.c_str());
+            Serial.println("removed file");
+        }
+        else
+        {
+            Serial.println("file doesn't exist");
+        }
+        SPIFFS.end();
+    }
+    void formatFilesystem()
+    {
+        Serial.println("formatting filesystem...");
+
+        if (!SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED))
+        {
+            Serial.println("SPIFFS Mount Failed");
+            return;
+        }
+        SPIFFS.format();
+        SPIFFS.end();
+        Serial.println("formatted filesystem");
+    }
+
+    bool shouldSendFile = false;
+    uint8_t fileBuffer[max_message_size];
+    void sendFilePacket() {
+        auto bytesLeftToRead = fileSize - bytesTransferred;
+        auto bytesToSend = (bytesLeftToRead > max_message_size-1) ? max_message_size-1 : bytesLeftToRead;
+        fileBuffer[0] = (uint8_t) MessageType::SEND_FILE;
+        file.read(&fileBuffer[1], bytesToSend);
+        bytesTransferred += bytesToSend;
+
+        Serial.printf("sent %u bytes of %u\n", bytesTransferred, fileSize);
+
+        server.binary(client->id(), fileBuffer, bytesToSend+1);
+
+        if (bytesTransferred >= fileSize)
+        {
+            Serial.println("finished sending file!");
+            shouldSendFile = false;
+            file.close();
+            SPIFFS.end();
+        }
     }
 
     std::map<MessageType, bool> _clientMessageFlags;
@@ -145,6 +223,71 @@ namespace webSocket
         _clientMessageFlags[MessageType::SET_WEIGHT_DATA_DELAY] = true;
         return dataOffset;
     }
+    uint8_t onClientRequestReceiveFile(uint8_t *data, uint8_t dataOffset)
+    {
+        fileSize = (((uint32_t)data[dataOffset + 3]) << 24) | (((uint32_t)data[dataOffset + 2]) << 16) | ((uint32_t)data[dataOffset + 1]) << 8 | ((uint32_t)data[dataOffset]);
+        bytesTransferred = 0;
+        dataOffset += 4;
+        auto filePathLength = data[dataOffset++];
+        filePath.assign((char *)&data[dataOffset], filePathLength);
+        dataOffset += filePathLength;
+        Serial.printf("anticipating %s of size %u\n", filePath.c_str(), fileSize);
+
+        if (!SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED))
+        {
+            Serial.println("SPIFFS Mount Failed");
+            return dataOffset;
+        }
+        file = SPIFFS.open(filePath.c_str(), FILE_WRITE);
+
+        if (incomingFileType == FileType::NONE)
+        {
+            incomingFileType = FileType::FILE;
+        }
+        return dataOffset;
+    }
+    uint8_t onClientRequestSendFile(uint8_t *data, uint8_t dataOffset)
+    {
+        auto filePathLength = data[dataOffset++];
+        filePath.assign((char *)&data[dataOffset], filePathLength);
+        dataOffset += filePathLength;
+        Serial.printf("request to send %s\n", filePath.c_str());
+
+        if (!SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED))
+        {
+            Serial.println("SPIFFS Mount Failed");
+            return dataOffset;
+        }
+        if (SPIFFS.exists(filePath.c_str()))
+        {
+            file = SPIFFS.open(filePath.c_str(), FILE_READ);
+            fileSize = file.size();
+        }
+        else
+        {
+            fileSize = 0;
+        }
+
+        bytesTransferred = 0;
+
+        _clientMessageFlags[MessageType::SEND_FILE] = true;
+        shouldSendToClient = true;
+        return dataOffset;
+    }
+    uint8_t onClientRequestRemoveFile(uint8_t *data, uint8_t dataOffset)
+    {
+        auto filePathLength = data[dataOffset++];
+        filePath.assign((char *)&data[dataOffset], filePathLength);
+        dataOffset += filePathLength;
+        Serial.printf("request to remove %s\n", filePath.c_str());
+        _clientMessageFlags[MessageType::REMOVE_FILE] = true;
+        return dataOffset;
+    }
+    uint8_t onClientRequestFormatFilesystem(uint8_t *data, uint8_t dataOffset)
+    {
+        _clientMessageFlags[MessageType::FORMAT_FILESYSTEM] = true;
+        return dataOffset;
+    }
     uint8_t onClientRequestGetFirmwareVersion(uint8_t *data, uint8_t dataOffset)
     {
         if (_clientMessageFlags.count(MessageType::GET_FIRMWARE_VERSION) == 0)
@@ -232,6 +375,18 @@ namespace webSocket
                     case MessageType::SET_WEIGHT_DATA_DELAY:
                         dataOffset = onClientRequestSetWeightDataDelay(data, dataOffset);
                         break;
+                    case MessageType::RECEIVE_FILE:
+                        dataOffset = onClientRequestReceiveFile(data, dataOffset);
+                        break;
+                    case MessageType::SEND_FILE:
+                        dataOffset = onClientRequestSendFile(data, dataOffset);
+                        break;
+                    case MessageType::REMOVE_FILE:
+                        dataOffset = onClientRequestRemoveFile(data, dataOffset);
+                        break;
+                    case MessageType::FORMAT_FILESYSTEM:
+                        dataOffset = onClientRequestFormatFilesystem(data, dataOffset);
+                        break;
                     case MessageType::GET_FIRMWARE_VERSION:
                         dataOffset = onClientRequestGetFirmwareVersion(data, dataOffset);
                         break;
@@ -272,6 +427,12 @@ namespace webSocket
                 case FileType::FIRMWARE:
                     Update.write(data, len);
                     break;
+                case FileType::FILE:
+                    Serial.printf("received payload of size %u\n", len);
+                    file.write(data, len);
+                    bytesTransferred += len;
+                    Serial.printf("received %d/%d bytes\n", bytesTransferred, fileSize);
+                    break;
                 default:
                     break;
                 }
@@ -310,6 +471,14 @@ namespace webSocket
                                     Update.printError(Serial);
                                 }
                             }
+                            break;
+                        case FileType::FILE:
+                            Serial.println("finished file!");
+                            Serial.printf("received %d/%d bytes!!\n", bytesTransferred, fileSize);
+                            file.close();
+                            SPIFFS.end();
+                            _clientMessageFlags[MessageType::RECEIVE_FILE] = true;
+                            shouldSendToClient = true;
                             break;
                         default:
                             break;
@@ -417,13 +586,23 @@ namespace webSocket
         }
     }
 
+    unsigned long lastSendFileTime = 0;
+    uint16_t send_file_delay_ms = 20;
+    void sendFileLoop() {
+        if (shouldSendFile && currentTime >= lastSendFileTime + send_file_delay_ms)
+        {
+            lastSendFileTime = currentTime - (currentTime % send_file_delay_ms);
+            sendFilePacket();
+        }
+    }
+
     std::string firmwareVersion = "0.0";
     void messageLoop()
     {
         if (shouldSendToClient)
         {
             _clientMessageDataSize = 0;
-
+            
             for (auto clientMessageFlagIterator = _clientMessageFlags.begin(); clientMessageFlagIterator != _clientMessageFlags.end(); clientMessageFlagIterator++)
             {
                 auto messageType = clientMessageFlagIterator->first;
@@ -489,6 +668,28 @@ namespace webSocket
                     _clientMessageDataSize += sizeof(weight);
                 }
                 break;
+                case MessageType::RECEIVE_FILE:
+                    _clientMessageData[_clientMessageDataSize++] = filePath.length();
+                    memcpy(&_clientMessageData[_clientMessageDataSize], filePath.c_str(), filePath.length());
+                    _clientMessageDataSize += filePath.length();
+                    break;
+                case MessageType::SEND_FILE:
+                    _clientMessageData[_clientMessageDataSize++] = filePath.length();
+                    memcpy(&_clientMessageData[_clientMessageDataSize], filePath.c_str(), filePath.length());
+                    _clientMessageDataSize += filePath.length();
+                    memcpy(&_clientMessageData[_clientMessageDataSize], (uint8_t *)&fileSize, sizeof(fileSize));
+                    _clientMessageDataSize += sizeof(fileSize);
+                    shouldSendFile = true;
+                    break;
+                case MessageType::REMOVE_FILE:
+                    removeFile();
+                    _clientMessageData[_clientMessageDataSize++] = filePath.length();
+                    memcpy(&_clientMessageData[_clientMessageDataSize], filePath.c_str(), filePath.length());
+                    _clientMessageDataSize += filePath.length();
+                    break;
+                case MessageType::FORMAT_FILESYSTEM:
+                    formatFilesystem();
+                    break;
                 case MessageType::GET_FIRMWARE_VERSION:
                     _clientMessageData[_clientMessageDataSize++] = firmwareVersion.length();
                     memcpy(&_clientMessageData[_clientMessageDataSize], firmwareVersion.c_str(), firmwareVersion.length());
@@ -533,10 +734,15 @@ namespace webSocket
         {
             if (sentInitialPayload)
             {
-                batteryLevelLoop();
-                motionCalibrationLoop();
-                sensorDataLoop();
-                weightDataLoop();
+                if (!shouldSendFile) {
+                    batteryLevelLoop();
+                    // motionCalibrationLoop();
+                    sensorDataLoop();
+                    weightDataLoop();
+                }
+                else {
+                    sendFileLoop();
+                }
             }
             messageLoop();
         }
