@@ -4,6 +4,7 @@
 #include "definitions.h"
 #include "sensor/pressureSensor.h"
 #include "weight/weightData.h"
+#include "weight/weightDetection.h"
 
 namespace type
 {
@@ -18,6 +19,7 @@ namespace type
         {
             _isRightInsole = (type == Type::RIGHT_INSOLE);
             pressureSensor::updateSide(_isRightInsole);
+            weightDetection::loadModel();
         }
         else {
             weightData::setDelay(0);

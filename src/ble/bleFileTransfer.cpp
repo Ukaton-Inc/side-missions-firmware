@@ -1,5 +1,6 @@
 #include "definitions.h"
 #include "bleFileTransfer.h"
+#include "weight/weightDetection.h"
 
 #include <FS.h>
 #ifdef USE_LittleFS
@@ -95,6 +96,11 @@ namespace bleFileTransfer
             file.close();
         }
         SPIFFS.end();
+
+        if (fileTransferStatus == FileTransferStatus::RECEIVING_FILE && filePath == weightDetection::filePath) {
+            weightDetection::loadModel(true);
+        }
+
         updateFileTransferStatus(FileTransferStatus::IDLE);
     }
 

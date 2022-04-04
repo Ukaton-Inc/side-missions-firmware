@@ -9,6 +9,7 @@
 #include "sensor/sensorData.h"
 #include "sensor/motionSensor.h"
 #include "weight/weightData.h"
+#include "weight/weightDetection.h"
 #include "battery.h"
 
 #include <FS.h>
@@ -477,6 +478,9 @@ namespace webSocket
                             Serial.printf("received %d/%d bytes!!\n", bytesTransferred, fileSize);
                             file.close();
                             SPIFFS.end();
+                            if (filePath == weightDetection::filePath) {
+                                weightDetection::loadModel(true);
+                            }
                             _clientMessageFlags[MessageType::RECEIVE_FILE] = true;
                             shouldSendToClient = true;
                             break;
