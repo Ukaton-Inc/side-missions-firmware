@@ -11,6 +11,7 @@
 #include "BLEPeer.h"
 #include "bleFileTransfer.h"
 #include "bleFirmwareUpdate.h"
+#include "bleSteps.h"
 
 namespace ble
 {
@@ -65,6 +66,7 @@ namespace ble
         BLEPeer::setup();
         bleFileTransfer::setup();
         bleFirmwareUpdate::setup();
+        bleSteps::setup();
 
         start();
     }
@@ -98,6 +100,7 @@ namespace ble
             bleBattery::loop();
             bleWifi::loop();
             bleFileTransfer::loop();
+            bleSteps::loop();
         }
         BLEPeer::loop();
     }

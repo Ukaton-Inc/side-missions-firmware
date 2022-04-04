@@ -11,6 +11,7 @@
 #include "sensor/pressureSensor.h"
 #include "sensor/sensorData.h"
 #include "weight/weightData.h"
+#include "steps.h"
 
 void setup()
 {
@@ -28,6 +29,7 @@ void setup()
     pressureSensor::setup();
     wifi::setup();
     ble::setup();
+    steps::setup();
 }
 
 void loop()
@@ -38,4 +40,5 @@ void loop()
     weightData::loop();
     wifi::loop();
     ble::loop();
+    steps::loop();
 }
