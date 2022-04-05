@@ -1,5 +1,6 @@
 #include "steps.h"
 #include "sensor/pressureSensor.h"
+#include "information/type.h"
 #include <Preferences.h>
 
 namespace steps
@@ -123,7 +124,7 @@ namespace steps
     void loop() {
         currentTime = millis();
 
-        if (_isTracking && currentTime >= lastStepCheckTime + check_step_delay_ms)
+        if (_isTracking && type::isInsole() && currentTime >= lastStepCheckTime + check_step_delay_ms)
         {
             checkStep();
             lastStepCheckTime = currentTime - (currentTime % check_step_delay_ms);

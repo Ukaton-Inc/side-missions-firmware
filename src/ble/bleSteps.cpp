@@ -71,7 +71,7 @@ namespace bleSteps
         pMassThresholdCharacteristic->setCallbacks(new MassThresholdCharacteristicCallbacks());
         updateMassThresholdCharacteristic();
 
-        pDataCharacteristic = ble::createCharacteristic(GENERATE_UUID("c003"), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY | NIMBLE_PROPERTY::WRITE, "step data");
+        pDataCharacteristic = ble::createCharacteristic(GENERATE_UUID("c002"), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY | NIMBLE_PROPERTY::WRITE, "step data");
         pDataCharacteristic->setCallbacks(new DataCharacteristicCallbacks());
         updateDataCharacteristic();
     }
