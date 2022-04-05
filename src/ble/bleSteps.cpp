@@ -45,6 +45,7 @@ namespace bleSteps
     void updateDataCharacteristic(bool notify = true)
     {
         pDataCharacteristic->setValue(steps::getSteps());
+        //Serial.println(steps::getSteps());
         if (notify && pDataCharacteristic->getSubscribedCount() > 0) {
             pDataCharacteristic->notify();
         }
