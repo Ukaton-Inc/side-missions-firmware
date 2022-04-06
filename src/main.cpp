@@ -12,16 +12,14 @@
 #include "sensor/sensorData.h"
 #include "weight/weightData.h"
 #include "steps.h"
+#include "haptics.h"
 
 void setup()
 {
     Serial.begin(115200);
     setCpuFrequencyMhz(CPU_FREQUENCY_MHZ);
 
-#if DEBUG
-    Serial.println("setup");
-#endif
-
+    battery::setup();
     name::setup();
     type::setup();
     motionSensor::setup();
@@ -30,15 +28,18 @@ void setup()
     wifi::setup();
     ble::setup();
     steps::setup();
+    haptics::setup();
 }
 
 void loop()
 {
+    battery::setup();
     motionSensor::loop();
     moveToWake::loop();
     sensorData::loop();
     weightData::loop();
+    steps::loop();
     wifi::loop();
     ble::loop();
-    steps::loop();
+    haptics::loop(); // remove
 }

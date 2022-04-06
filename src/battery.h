@@ -6,7 +6,13 @@
 
 namespace battery
 {
-    // FILL
+    extern float voltage;
+    extern float soc;
+
+    extern unsigned long lastUpdateBatteryLevelTime;
+
+    void setup();
+    void loop();
 }
 
 #endif // _BATTERY_

@@ -538,9 +538,13 @@ namespace webSocket
     }
 
     unsigned long currentTime = 0;
+    unsigned long lastUpdateBatteryLevelTime = 0;
     void batteryLevelLoop()
     {
-        // FIX LATER
+        if (lastUpdateBatteryLevelTime != battery::lastUpdateBatteryLevelTime) {
+            _clientMessageFlags[MessageType::BATTERY_LEVEL] = true;
+            lastUpdateBatteryLevelTime = battery::lastUpdateBatteryLevelTime;
+        }
     }
     unsigned long lastCalibrationUpdateTime;
     void motionCalibrationLoop()
@@ -615,8 +619,7 @@ namespace webSocket
                 switch (messageType)
                 {
                 case MessageType::BATTERY_LEVEL:
-                    // FIX LATER
-                    _clientMessageData[_clientMessageDataSize++] = 100;
+                    _clientMessageData[_clientMessageDataSize++] = (uint8_t) battery::soc;
                     break;
                 case MessageType::GET_TYPE:
                 case MessageType::SET_TYPE:

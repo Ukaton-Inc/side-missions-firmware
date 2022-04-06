@@ -6,10 +6,13 @@ namespace bleBattery
     BLEService *pService;
     BLECharacteristic *pLevelCharacteristic;
 
+    unsigned long lastUpdateBatteryLevelTime = 0;
     void updateLevelCharacteristic(bool notify = false)
     {
-        pLevelCharacteristic->setValue(100); // FIX LATER
-        if (pLevelCharacteristic->getSubscribedCount() > 0 && notify)
+        return;
+        uint8_t batteryLevel = battery::soc;
+        pLevelCharacteristic->setValue(batteryLevel);
+        if (notify && pLevelCharacteristic->getSubscribedCount() > 0)
         {
             pLevelCharacteristic->notify();
         }
@@ -24,6 +27,9 @@ namespace bleBattery
     }
 
     void loop() {
-        // FIX LATER
+        if (lastUpdateBatteryLevelTime != battery::lastUpdateBatteryLevelTime) {
+            updateLevelCharacteristic(true);
+            lastUpdateBatteryLevelTime = battery::lastUpdateBatteryLevelTime;
+        }
     }
 } // namespace bleBattery
