@@ -12,6 +12,7 @@
 #include "bleFileTransfer.h"
 #include "bleFirmwareUpdate.h"
 #include "bleSteps.h"
+#include "bleHaptics.h"
 
 namespace ble
 {
@@ -67,6 +68,7 @@ namespace ble
         bleFileTransfer::setup();
         bleFirmwareUpdate::setup();
         bleSteps::setup();
+        bleHaptics::setup();
 
         start();
     }
@@ -101,6 +103,7 @@ namespace ble
             bleWifi::loop();
             bleFileTransfer::loop();
             bleSteps::loop();
+            bleHaptics::loop();
         }
         BLEPeer::loop();
     }

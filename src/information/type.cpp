@@ -5,6 +5,7 @@
 #include "sensor/pressureSensor.h"
 #include "weight/weightData.h"
 #include "weight/weightDetection.h"
+#include "haptics.h"
 
 namespace type
 {
@@ -20,6 +21,7 @@ namespace type
             _isRightInsole = (type == Type::RIGHT_INSOLE);
             pressureSensor::updateSide(_isRightInsole);
             weightDetection::loadModel();
+            haptics::setup();
         }
         else {
             weightData::setDelay(0);

@@ -39,18 +39,12 @@ namespace motionSensor
     bool didInterrupt = false;
     void interruptCallback()
     {
-#if DEBUG
-        Serial.println("detected movement");
-#endif
         didInterrupt = true;
         lastTimeMoved = millis();
     }
 
     void setup()
     {
-#if DEBUG
-        Serial.println("motion setup...");
-#endif
         if (!bno.begin())
         {
             Serial.println("No BNO055 detected");
@@ -73,10 +67,6 @@ namespace motionSensor
         bno.enterLowPowerMode();
 #else
         bno.enterNormalMode();
-#endif
-
-#if DEBUG
-        Serial.println("done setting up motion sensor");
 #endif
     }
 
