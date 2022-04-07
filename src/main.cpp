@@ -36,6 +36,7 @@ void loop()
     moveToWake::loop();
     sensorData::loop();
     steps::loop();
+    haptics::loop();
     weightData::loop();
     wifi::loop();
     ble::loop();

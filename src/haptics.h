@@ -5,12 +5,11 @@
 #include "Adafruit_DRV2605.h"
 
 namespace haptics
-{
-    constexpr uint16_t waveform_trigger_delay_ms = 500;
-    constexpr uint8_t max_number_of_waveforms = 8;
-    constexpr uint8_t max_sequence_length = 10;
-    extern Adafruit_DRV2605 drv;
+{    
+    void vibrate(uint8_t *data, size_t length);
+
     void setup();
+    void loop();
 } // namespace haptics
 
 #endif // _HAPTICS_

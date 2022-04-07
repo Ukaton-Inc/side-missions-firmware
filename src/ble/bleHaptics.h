@@ -9,13 +9,6 @@ namespace bleHaptics
     extern BLECharacteristic *pVibrationCharacteristic;
     class VibrationCharacteristicCallbacks;
 
-    enum class VibrationType : uint8_t
-    {
-        WAVEFORM = 0,
-        SEQUENCE,
-        COUNT
-    };
-
     void setup();
     void loop();
 } // namespace bleHaptics
