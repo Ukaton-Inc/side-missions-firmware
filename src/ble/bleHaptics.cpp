@@ -22,9 +22,4 @@ namespace bleHaptics
         pVibrationCharacteristic = ble::createCharacteristic(GENERATE_UUID("d000"), NIMBLE_PROPERTY::WRITE, "haptics vibration");
         pVibrationCharacteristic->setCallbacks(new VibrationCharacteristicCallbacks());
     }
-
-    void loop()
-    {
-        
-    }
 } // namespace bleHaptics

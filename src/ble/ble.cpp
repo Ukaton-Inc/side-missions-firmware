@@ -103,7 +103,6 @@ namespace ble
             bleWifi::loop();
             bleFileTransfer::loop();
             bleSteps::loop();
-            bleHaptics::loop();
         }
         BLEPeer::loop();
     }

@@ -10,7 +10,6 @@ namespace bleHaptics
     class VibrationCharacteristicCallbacks;
 
     void setup();
-    void loop();
 } // namespace bleHaptics
 
 #endif // _BLE_HAPTICS_
