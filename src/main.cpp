@@ -19,6 +19,7 @@ void setup()
     Serial.begin(115200);
     setCpuFrequencyMhz(CPU_FREQUENCY_MHZ);
     
+    battery::setup();
     name::setup();
     type::setup();
     motionSensor::setup();
@@ -32,6 +33,7 @@ void setup()
 
 void loop()
 {
+    battery::loop();
     motionSensor::loop();
     moveToWake::loop();
     sensorData::loop();
