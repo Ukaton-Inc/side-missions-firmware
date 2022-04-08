@@ -1,7 +1,5 @@
 #include "definitions.h"
-#include "weightDetection.h"
-#include "sensor/pressureSensor.h"
-#include "information/type.h"
+#include "tflite_template.h"
 
 #include <FS.h>
 #ifdef USE_LittleFS
@@ -18,7 +16,7 @@
 #include "tensorflow/lite/schema/schema_generated.h"
 #include "tensorflow/lite/version.h"
 
-namespace weightDetection
+namespace tflite_template
 {
     bool isModelLoaded = false;
     uint8_t interpreterBuffer[sizeof(tflite::MicroInterpreter)];
@@ -68,7 +66,7 @@ namespace weightDetection
     }
 
     void loadModel(bool override) {
-        if (type::isInsole() && (!isModelLoaded || override)) {
+        if (!isModelLoaded || override) {
             getModel();
             if (!loadedTfliteFile) {
                 isModelLoaded = false;
@@ -93,39 +91,46 @@ namespace weightDetection
         }
     }
 
-    float features[pressureSensor::number_of_pressure_sensors]{};
+    constexpr uint8_t numberOfFeatures = 1; // CHANGE
+    float features[numberOfFeatures]{};
     void updateFeatures() {
-        pressureSensor::update();
-        auto pressureData = pressureSensor::getPressureDataDoubleByte();
-        for (uint8_t index = 0; index < pressureSensor::number_of_pressure_sensors; index++) {
-            features[index] = pressureData[index];
+        // CHANGE
+        for (uint8_t index = 0; index < numberOfFeatures; index++) {
+            features[index] = 0;
         }
     }
 
-    float guessWeight()
-    {
-        if (!isModelLoaded) {
-            return -1;
-        }
+    constexpr uint8_t numberOfClasses = 1; // CHANGE
 
-        //Serial.println("updating features");
+    void makeInference()
+    {
+        Serial.println("updating features");
         updateFeatures();
-        for (uint8_t sensorIndex = 0; sensorIndex < pressureSensor::number_of_pressure_sensors; sensorIndex++)
+        for (uint8_t index = 0; index < sizeof(features); index++)
         {
-            tflInputTensor->data.f[sensorIndex] = features[sensorIndex];
+            tflInputTensor->data.f[index] = features[index];
         }
-        //Serial.println("updasted tensor");
+        Serial.println("updated tensor");
 
         TfLiteStatus invokeStatus = tflInterpreter->Invoke();
         if (invokeStatus != kTfLiteOk)
         {
             Serial.println("Invoke failed!");
-            return -1;
+            return;
         }
 
-        float weight = tflOutputTensor->data.f[0];
-        //Serial.printf("weight: %f\n", weight);
+        uint8_t maxIndex = 0;
+        float maxValue = 0;
+        for (uint8_t i = 0; i < numberOfClasses; i++)
+        {
+            float value = tflOutputTensor->data.f[i];
+            Serial.printf("class: %u, score: %f", i, value);
 
-        return weight;
+            if (value > maxValue)
+            {
+                maxValue = value;
+                maxIndex = i;
+            }
+        }
     }
-} // namespace weightDetection
+} // namespace tflite_template

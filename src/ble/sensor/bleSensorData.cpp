@@ -4,17 +4,10 @@
 
 namespace bleSensorData {
     BLECharacteristic *pConfigurationCharacteristic;
-    uint8_t configuration[sizeof(sensorData::motionConfiguration) + sizeof(sensorData::pressureConfiguration)];
     void updateConfigurationCharacteristic() {
-        uint8_t offset = 0;
-
-        memcpy(&configuration[offset], sensorData::motionConfiguration, sizeof(sensorData::motionConfiguration));
-        offset += sizeof(sensorData::motionConfiguration);
-        memcpy(&configuration[offset], sensorData::pressureConfiguration, sizeof(sensorData::pressureConfiguration));
-        offset += sizeof(sensorData::pressureConfiguration);
-        
-        pConfigurationCharacteristic->setValue((uint8_t *) configuration, sizeof(configuration));
+        pConfigurationCharacteristic->setValue((uint8_t *) sensorData::configurations.flattened.data(), sizeof(uint16_t) * sensorData::configurations.flattened.max_size());
     }
+
     class ConfigurationCharacteristicCallbacks : public BLECharacteristicCallbacks
     {
         void onWrite(BLECharacteristic *pCharacteristic)
@@ -63,7 +56,7 @@ namespace bleSensorData {
     }
     
     void loop() {
-        if (lastDataUpdateTime != sensorData::lastDataUpdateTime && pDataCharacteristic->getSubscribedCount() > 0 && (sensorData::motionDataSize + sensorData::pressureDataSize > 0) && !webSocket::isConnectedToClient()) {
+        if (pDataCharacteristic->getSubscribedCount() > 0 && lastDataUpdateTime != sensorData::lastDataUpdateTime && (sensorData::motionDataSize + sensorData::pressureDataSize > 0) && !webSocket::isConnectedToClient()) {
             lastDataUpdateTime = sensorData::lastDataUpdateTime;
             updateDataCharacteristic();
         }

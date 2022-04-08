@@ -8,6 +8,7 @@
 
 namespace weightData
 {
+
     const uint16_t min_delay_ms = 20;
     uint16_t delay = 0;
     void setDelay(uint16_t _delay)

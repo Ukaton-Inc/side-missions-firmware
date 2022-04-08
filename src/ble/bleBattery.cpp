@@ -9,7 +9,7 @@ namespace bleBattery
     void updateLevelCharacteristic(bool notify = false)
     {
         pLevelCharacteristic->setValue(100); // FIX LATER
-        if (notify)
+        if (pLevelCharacteristic->getSubscribedCount() > 0 && notify)
         {
             pLevelCharacteristic->notify();
         }

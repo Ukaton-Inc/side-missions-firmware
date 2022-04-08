@@ -10,6 +10,8 @@ namespace name
     void setup();
 
     const std::string *getName();
+    bool isNameValid(const char* newName, size_t length);
+    bool isNameValid(const char* newName);
     void setName(const char* newName, size_t length);
     void setName(const char* newName);
 } // namespace name

@@ -5,7 +5,12 @@
 #include <Arduino.h>
 #include <NimBLEDevice.h>
 
-#define GENERATE_UUID(val) ("5691eddf-" val "-4420-b7a5-bb8751ab5181")
+#define UUID_PREFIX "5691eddf-"
+#define UUID_SUFFIX "-4420-b7a5-bb8751ab5181"
+#define GENERATE_UUID(val) (UUID_PREFIX val UUID_SUFFIX)
+
+#define BLE_UUID_LENGTH 36
+#define MAX_BLE_ATTRIBUTE_LENGTH 512
 
 namespace ble
 {

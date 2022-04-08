@@ -15,6 +15,7 @@ namespace name
         if (preferences.isKey("name")) {
             name = preferences.getString("name").c_str();
         }
+        preferences.end();
 
         Serial.print("name: ");
         Serial.println(name.c_str());
@@ -26,11 +27,23 @@ namespace name
     const std::string *getName() {
         return &name;
     }
+
+    bool isNameValid(const char* newName, size_t length) {
+        return length <= MAX_NAME_LENGTH;
+    }
+    bool isNameValid(const char* newName) {
+        return isNameValid(newName, strlen(newName));
+    }
+
     void setName(const char *newName, size_t length)
     {
-        if (length <= MAX_NAME_LENGTH) {
+        if (isNameValid(newName, length)) {
             name.assign(newName, length);
+
+            preferences.begin("name");
             preferences.putString("name", name.c_str());
+            preferences.end();
+            
             Serial.print("changed name to: ");
             Serial.println(name.c_str());
             ble_svc_gap_device_name_set(name.c_str());
@@ -42,7 +55,6 @@ namespace name
     }
     void setName(const char *newName)
     {
-        uint8_t length = strlen(newName);
-        setName(newName, length);
+        setName(newName, strlen(newName));
     }
 } // namespace name

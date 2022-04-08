@@ -1,8 +1,6 @@
 #include "definitions.h"
 #include "ble.h"
 
-#include "bleDebug.h"
-#include "bleErrorMessage.h"
 #include "information/bleType.h"
 #include "information/bleName.h"
 #include "sensor/bleMotionCalibration.h"
@@ -10,6 +8,11 @@
 #include "weight/bleWeightData.h"
 #include "bleBattery.h"
 #include "wifi/bleWifi.h"
+#include "BLEPeer.h"
+#include "bleFileTransfer.h"
+#include "bleFirmwareUpdate.h"
+#include "bleSteps.h"
+#include "bleHaptics.h"
 
 namespace ble
 {
@@ -36,6 +39,7 @@ namespace ble
             lastTimeConnected = millis();
             isServerConnected = false;
             Serial.println("disconnected via ble");
+
             bleSensorData::clearConfigurations();
             bleWeightData::clearDelay();
         }
@@ -44,6 +48,7 @@ namespace ble
     void setup()
     {
         BLEDevice::init(bleName::getName()->c_str());
+        BLEDevice::setPower(ESP_PWR_LVL_P9);
         pServer = BLEDevice::createServer();
         pServer->setCallbacks(new ServerCallbacks());
         pService = pServer->createService(BLEUUID(GENERATE_UUID("0000")), 256);
@@ -52,8 +57,6 @@ namespace ble
         pAdvertising->addServiceUUID(pService->getUUID());
         pAdvertising->setScanResponse(true);
 
-        bleDebug::setup();
-        bleErrorMessage::setup();
         bleType::setup();
         bleName::setup();
         bleMotionCalibration::setup();
@@ -61,18 +64,18 @@ namespace ble
         bleWeightData::setup();
         bleWifi::setup();
         bleBattery::setup();
+        BLEPeer::setup();
+        bleFileTransfer::setup();
+        bleFirmwareUpdate::setup();
+        bleSteps::setup();
+        bleHaptics::setup();
 
         start();
     }
 
     BLECharacteristic *createCharacteristic(const char *uuid, uint32_t properties, const char *name, BLEService *_pService)
     {
-        BLECharacteristic *pCharacteristic = _pService->createCharacteristic(uuid, properties);
-
-        BLEDescriptor *pNameDescriptor = pCharacteristic->createDescriptor(NimBLEUUID((uint16_t)0x2901), NIMBLE_PROPERTY::READ);
-        pNameDescriptor->setValue((uint8_t *)name, strlen(name));
-
-        return pCharacteristic;
+        return createCharacteristic(BLEUUID(uuid), properties, name, _pService);
     }
     BLECharacteristic *createCharacteristic(BLEUUID uuid, uint32_t properties, const char *name, BLEService *_pService)
     {
@@ -88,7 +91,7 @@ namespace ble
     {
         pService->start();
         pServer->startAdvertising();
-        Serial.println("starting ble...");
+        Serial.println("started ble");
     }
 
     void loop() {
@@ -98,6 +101,9 @@ namespace ble
             bleWeightData::loop();
             bleBattery::loop();
             bleWifi::loop();
+            bleFileTransfer::loop();
+            bleSteps::loop();
         }
+        BLEPeer::loop();
     }
 } // namespace ble

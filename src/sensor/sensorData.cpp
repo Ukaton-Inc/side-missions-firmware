@@ -13,31 +13,28 @@ namespace sensorData
         return sensorType < SensorType::COUNT;
     }
 
-    const uint16_t min_delay_ms = 20;
-    uint16_t motionConfiguration[(uint8_t)motionSensor::DataType::COUNT]{0};
-    uint16_t pressureConfiguration[(uint8_t)pressureSensor::DataType::COUNT]{0};
-    bool hasAtLeastOneNonzeroDelay = false;
-    void updateHasAtLeastOneNonzeroDelay()
+    Configurations configurations;
+    void updateHasAtLeastOneNonzeroDelay(Configurations &_configurations)
     {
-        hasAtLeastOneNonzeroDelay = false;
+        _configurations.hasAtLeastOneNonzeroDelay = false;
 
-        for (uint8_t i = 0; i < (uint8_t)motionSensor::DataType::COUNT && !hasAtLeastOneNonzeroDelay; i++)
+        for (uint8_t i = 0; i < (uint8_t)motionSensor::DataType::COUNT && !_configurations.hasAtLeastOneNonzeroDelay; i++)
         {
-            if (motionConfiguration[i] != 0)
+            if (_configurations.motion[i] != 0)
             {
-                hasAtLeastOneNonzeroDelay = true;
+                _configurations.hasAtLeastOneNonzeroDelay = true;
             }
         }
 
-        for (uint8_t i = 0; i < (uint8_t)pressureSensor::DataType::COUNT && !hasAtLeastOneNonzeroDelay; i++)
+        for (uint8_t i = 0; i < (uint8_t)pressureSensor::DataType::COUNT && !_configurations.hasAtLeastOneNonzeroDelay; i++)
         {
-            if (pressureConfiguration[i] != 0)
+            if (_configurations.pressure[i] != 0)
             {
-                hasAtLeastOneNonzeroDelay = true;
+                _configurations.hasAtLeastOneNonzeroDelay = true;
             }
         }
     }
-    void setConfiguration(const uint8_t *newConfiguration, uint8_t size, SensorType sensorType)
+    void setConfiguration(const uint8_t *newConfiguration, uint8_t size, SensorType sensorType, Configurations &_configurations)
     {
         for (uint8_t offset = 0; offset < size; offset += 3)
         {
@@ -45,112 +42,70 @@ namespace sensorData
             uint16_t delay = ((uint16_t)newConfiguration[offset + 2] << 8) | (uint16_t)newConfiguration[offset + 1];
             delay -= (delay % min_delay_ms);
 
-#if DEBUG
-            Serial.print("setting delay: ");
-            Serial.print(delay);
-            Serial.print(" for sensor type: ");
-            Serial.print((uint8_t)sensorType);
-            Serial.print(" for sensor data type: ");
-            Serial.print(sensorDataTypeIndex);
-            Serial.println("...");
-#endif
-
             switch (sensorType)
             {
             case SensorType::MOTION:
                 if (motionSensor::isValidDataType((motionSensor::DataType)sensorDataTypeIndex))
                 {
-                    motionConfiguration[sensorDataTypeIndex] = delay;
-                }
-                else
-                {
-#if DEBUG
-                    Serial.println("invalid sensor data type");
-#endif
+                    _configurations.motion[sensorDataTypeIndex] = delay;
                 }
                 break;
             case SensorType::PRESSURE:
                 if (pressureSensor::isValidDataType((pressureSensor::DataType)sensorDataTypeIndex))
                 {
-                    pressureConfiguration[sensorDataTypeIndex] = delay;
-                }
-                else
-                {
-#if DEBUG
-                    Serial.println("invalid sensor data type");
-#endif
+                    _configurations.pressure[sensorDataTypeIndex] = delay;
                 }
                 break;
             default:
-#if DEBUG
-                Serial.println("invalid sensor type");
-#endif
                 break;
             }
         }
 
         if (sensorType == SensorType::PRESSURE)
         {
-            if (pressureConfiguration[(uint8_t)pressureSensor::DataType::SINGLE_BYTE] > 0 && pressureConfiguration[(uint8_t)pressureSensor::DataType::DOUBLE_BYTE] > 0)
+            if (_configurations.pressure[(uint8_t)pressureSensor::DataType::SINGLE_BYTE] > 0 && _configurations.pressure[(uint8_t)pressureSensor::DataType::DOUBLE_BYTE] > 0)
             {
-                pressureConfiguration[(uint8_t)pressureSensor::DataType::SINGLE_BYTE] = 0;
+                _configurations.pressure[(uint8_t)pressureSensor::DataType::SINGLE_BYTE] = 0;
             }
         }
     }
-    void setConfigurations(const uint8_t *newConfigurations, uint8_t size)
+    void setConfigurations(const uint8_t *newConfigurations, uint8_t size, Configurations &_configurations)
     {
         uint8_t offset = 0;
         while (offset < size)
         {
             const auto sensorType = (SensorType)newConfigurations[offset++];
-            if (!isValidSensorType(sensorType))
+            if (isValidSensorType(sensorType))
             {
-#if DEBUG
-                Serial.print("invalid sensor type: ");
-                Serial.println((uint8_t)sensorType);
-#endif
+                const uint8_t _size = newConfigurations[offset++];
+                setConfiguration(&newConfigurations[offset], _size, sensorType, _configurations);
+                offset += _size;
+            }
+            else {
+                Serial.printf("invalid sensor type: %d\n", (uint8_t) sensorType);
                 break;
             }
-            const uint8_t _size = newConfigurations[offset++];
-            setConfiguration(&newConfigurations[offset], _size, sensorType);
-            offset += _size;
         }
 
-#if DEBUG
-        Serial.println("motion configuration:");
-        for (uint8_t index = 0; index < sizeof(motionConfiguration) / 2; index++)
-        {
-            Serial.print(motionConfiguration[index]);
-            Serial.print(", ");
-        }
-        Serial.println();
+        flattenConfigurations(_configurations);
 
-        Serial.println("pressure configuration:");
-        for (uint8_t index = 0; index < sizeof(pressureConfiguration) / 2; index++)
-        {
-            Serial.print(pressureConfiguration[index]);
-            Serial.print(", ");
-        }
-        Serial.println();
-#endif
-
-        updateHasAtLeastOneNonzeroDelay();
+        updateHasAtLeastOneNonzeroDelay(_configurations);
     }
-    void clearConfiguration(SensorType sensorType)
+    void clearConfiguration(SensorType sensorType, Configurations &_configurations = configurations)
     {
         switch (sensorType)
         {
         case SensorType::MOTION:
-            memset(motionConfiguration, 0, sizeof(motionConfiguration));
+            _configurations.motion.fill(0);
             break;
         case SensorType::PRESSURE:
-            memset(pressureConfiguration, 0, sizeof(pressureConfiguration));
+            _configurations.pressure.fill(0);
             break;
         default:
             break;
         }
     }
-    void clearConfigurations()
+    void clearConfigurations(Configurations &_configurations)
     {
         for (uint8_t index = 0; index < (uint8_t)SensorType::COUNT; index++)
         {
@@ -158,7 +113,12 @@ namespace sensorData
             clearConfiguration(sensorType);
         }
 
-        updateHasAtLeastOneNonzeroDelay();
+        updateHasAtLeastOneNonzeroDelay(_configurations);
+    }
+
+    void flattenConfigurations(Configurations &_configurations) {
+        std::copy (_configurations.motion.cbegin(), _configurations.motion.cend(), _configurations.flattened.begin());
+        std::copy (_configurations.pressure.cbegin(), _configurations.pressure.cend(), _configurations.flattened.begin() + _configurations.motion.max_size());
     }
 
     uint8_t motionData[(uint8_t)motionSensor::DataSize::TOTAL + (uint8_t)motionSensor::DataType::COUNT]{0};
@@ -175,7 +135,7 @@ namespace sensorData
         clearMotionData();
         for (uint8_t dataTypeIndex = 0; dataTypeIndex < (uint8_t)motionSensor::DataType::COUNT; dataTypeIndex++)
         {
-            const uint16_t delay = motionConfiguration[dataTypeIndex];
+            const uint16_t delay = configurations.motion[dataTypeIndex];
             if (delay != 0 && ((lastDataUpdateTime % delay) == 0))
             {
                 auto dataType = (motionSensor::DataType)dataTypeIndex;
@@ -235,7 +195,7 @@ namespace sensorData
         bool didUpdateSensor = false;
         for (uint8_t dataTypeIndex = 0; dataTypeIndex < (uint8_t)pressureSensor::DataType::COUNT; dataTypeIndex++)
         {
-            const uint16_t delay = pressureConfiguration[dataTypeIndex];
+            const uint16_t delay = configurations.pressure[dataTypeIndex];
             if (delay != 0 && ((lastDataUpdateTime % delay) == 0))
             {
                 if (!didUpdateSensor)
@@ -305,7 +265,7 @@ namespace sensorData
     void loop()
     {
         currentTime = millis();
-        if (hasAtLeastOneNonzeroDelay && currentTime >= lastDataUpdateTime + min_delay_ms && (ble::isServerConnected || webSocket::isConnectedToClient() || udp::hasListener()))
+        if (configurations.hasAtLeastOneNonzeroDelay && currentTime >= lastDataUpdateTime + min_delay_ms && (ble::isServerConnected || webSocket::isConnectedToClient() || udp::hasListener()))
         {
             updateData();
             lastDataUpdateTime = currentTime - (currentTime % min_delay_ms);

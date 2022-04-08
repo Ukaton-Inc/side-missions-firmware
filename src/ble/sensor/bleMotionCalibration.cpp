@@ -4,6 +4,7 @@
 
 namespace bleMotionCalibration {
     BLECharacteristic *pCharacteristic;
+
     void setup() {
         pCharacteristic = ble::createCharacteristic(GENERATE_UUID("5001"), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY, "motion calibration");
     }
@@ -16,7 +17,7 @@ namespace bleMotionCalibration {
 
     unsigned long lastCalibrationUpdateTime;
     void loop() {
-        if (lastCalibrationUpdateTime != motionSensor::lastCalibrationUpdateTime && !webSocket::isConnectedToClient()) {
+        if (pCharacteristic->getSubscribedCount() > 0 && lastCalibrationUpdateTime != motionSensor::lastCalibrationUpdateTime && !webSocket::isConnectedToClient()) {
             lastCalibrationUpdateTime = motionSensor::lastCalibrationUpdateTime;
             updateDataCharacteristic(true);
         }

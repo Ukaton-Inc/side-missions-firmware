@@ -6,6 +6,7 @@
 
 namespace bleMotionCalibration
 {
+    class CharacteristicCallbacks;
     extern BLECharacteristic *pCharacteristic;
 
     void setup();

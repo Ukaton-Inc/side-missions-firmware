@@ -18,6 +18,7 @@ namespace type
     Type getType();
     bool isInsole();
     bool isRightInsole();
+    bool isTypeValid(Type newType);
     void setType(Type newType);
 } // namespace type
 

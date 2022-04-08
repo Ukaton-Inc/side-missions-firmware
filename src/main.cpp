@@ -11,21 +11,21 @@
 #include "sensor/pressureSensor.h"
 #include "sensor/sensorData.h"
 #include "weight/weightData.h"
+#include "steps.h"
+#include "haptics.h"
 
 void setup()
 {
     Serial.begin(115200);
     setCpuFrequencyMhz(CPU_FREQUENCY_MHZ);
-
-#if DEBUG
-    Serial.println("setup");
-#endif
-
+    
     name::setup();
     type::setup();
     motionSensor::setup();
     moveToWake::setup();
     pressureSensor::setup();
+    haptics::setup();
+    steps::setup();
     wifi::setup();
     ble::setup();
 }
@@ -35,6 +35,8 @@ void loop()
     motionSensor::loop();
     moveToWake::loop();
     sensorData::loop();
+    steps::loop();
+    haptics::loop();
     weightData::loop();
     wifi::loop();
     ble::loop();

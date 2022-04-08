@@ -46,7 +46,7 @@ namespace bleWifi
             }
 
             auto autoConnect = wifi::getAutoConnect();
-            pCharacteristic->setValue((uint8_t *)&autoConnect, 1);
+            pCharacteristic->setValue(autoConnect);
         }
     };
 
@@ -68,12 +68,12 @@ namespace bleWifi
 
         auto autoConnect = wifi::getAutoConnect();
         pConnectCharacteristic = ble::createCharacteristic(GENERATE_UUID("7003"), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE, "connect wifi");
-        pConnectCharacteristic->setValue((uint8_t *)&autoConnect, 1);
+        pConnectCharacteristic->setValue(autoConnect);
         pConnectCharacteristic->setCallbacks(new ConnectCharacteristicCallbacks());
 
         _isConnected = WiFi.isConnected();
         pIsConnectedCharacteristic = ble::createCharacteristic(GENERATE_UUID("7004"), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY, "is wifi connected");
-        pIsConnectedCharacteristic->setValue((uint8_t *)&_isConnected, 1);
+        pIsConnectedCharacteristic->setValue(_isConnected);
 
         pIPAddressCharacteristic = ble::createCharacteristic(GENERATE_UUID("7005"), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY, "wifi IP address");
         auto ip = WiFi.localIP();
@@ -97,7 +97,7 @@ namespace bleWifi
 
             _isConnected = isConnected;
 
-            pIsConnectedCharacteristic->setValue((uint8_t *)&_isConnected, 1);
+            pIsConnectedCharacteristic->setValue(_isConnected);
             pIsConnectedCharacteristic->notify();
 
             if (_isConnected)
@@ -108,8 +108,8 @@ namespace bleWifi
                 pIPAddressCharacteristic->notify();
 
                 auto macAddress = WiFi.macAddress();
+                pMACAddressCharacteristic->setValue(macAddress);
                 pMACAddressCharacteristic->setValue((uint8_t *)macAddress.c_str(), macAddress.length());
-                pMACAddressCharacteristic->notify();
 
             }
         }
