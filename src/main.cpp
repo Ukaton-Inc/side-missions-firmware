@@ -18,7 +18,7 @@ void setup()
 {
     Serial.begin(115200);
     setCpuFrequencyMhz(CPU_FREQUENCY_MHZ);
-    
+
     name::setup();
     type::setup();
     motionSensor::setup();
