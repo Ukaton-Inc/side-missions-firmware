@@ -1,6 +1,4 @@
 #include "battery.h"
-
-#include <Wire.h>
 #include <SparkFun_MAX1704x_Fuel_Gauge_Arduino_Library.h>
 
 namespace battery
@@ -11,10 +9,8 @@ namespace battery
 
     void setup()
     {
-        Wire.begin();
-
         lipo.enableDebugging();
-        Serial.println("gonna begin lipi");
+        Serial.println("gonna begin battery gauge");
         if (!lipo.begin())
         {
             Serial.println("MAX17043 not detected. Please check wiring");

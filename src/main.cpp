@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <Wire.h>
 
 #include "definitions.h"
 #include "ble/ble.h"
@@ -18,7 +19,8 @@ void setup()
 {
     Serial.begin(115200);
     setCpuFrequencyMhz(CPU_FREQUENCY_MHZ);
-    
+    Wire.begin();
+
     battery::setup();
     name::setup();
     type::setup();
@@ -27,8 +29,8 @@ void setup()
     pressureSensor::setup();
     haptics::setup();
     steps::setup();
-    wifi::setup();
-    ble::setup();
+    // wifi::setup();
+    // ble::setup();
 }
 
 void loop()
@@ -40,6 +42,6 @@ void loop()
     steps::loop();
     haptics::loop();
     weightData::loop();
-    wifi::loop();
-    ble::loop();
+    // wifi::loop();
+    // ble::loop();
 }

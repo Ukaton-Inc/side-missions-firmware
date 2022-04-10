@@ -34,8 +34,6 @@ namespace motionSensor
 
     void setup()
     {
-        return;
-        Wire.begin();
         if (!bno.begin())
         {
             Serial.println("No BNO080 detected");
@@ -45,6 +43,8 @@ namespace motionSensor
 
         // FILL - external oscillator stuff
         // FILL - interrupts
+
+        //bno.enableAccelerometer(100);
     }
 
     unsigned long currentTime;
