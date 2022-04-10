@@ -48,6 +48,30 @@ namespace sensorData
                 if (motionSensor::isValidDataType((motionSensor::DataType)sensorDataTypeIndex))
                 {
                     _configurations.motion[sensorDataTypeIndex] = delay;
+                    switch (motionSensor::DataType)
+                    {
+                        case motionSensor::DataType::ACCELERATION:
+                        motionSensor::bno.enableAccelerometer(delay);
+                        break;
+                        case motionSensor::DataType::GRAVITY:
+                        motionSensor::bno.enableGravity(delay);
+                        break;
+                        case motionSensor::DataType::LINEAR_ACCELERATION:
+                        motionSensor::bno.enableLinearAccelerometer(delay);
+                        break;
+                        case motionSensor::DataType::ROTATION_RATE:
+                        motionSensor::bno.enableGyro(delay);
+                        break;
+                        case motionSensor::DataType::MAGNETOMETER:
+                        motionSensor::bno.enableMagnetometer(delay);
+                        break;
+                        case motionSensor::DataType::QUATERNION:
+                        motionSensor::bno.enableRotationVector(delay);
+                        break;
+                        default:
+                        Serial.printf("uncaught motion sensor type %u\n", sensorDataTypeIndex);
+                        break;
+                    }
                 }
                 break;
             case SensorType::PRESSURE:
@@ -81,8 +105,9 @@ namespace sensorData
                 setConfiguration(&newConfigurations[offset], _size, sensorType, _configurations);
                 offset += _size;
             }
-            else {
-                Serial.printf("invalid sensor type: %d\n", (uint8_t) sensorType);
+            else
+            {
+                Serial.printf("invalid sensor type: %d\n", (uint8_t)sensorType);
                 break;
             }
         }
@@ -97,6 +122,12 @@ namespace sensorData
         {
         case SensorType::MOTION:
             _configurations.motion.fill(0);
+            motionSensor::bno.enableAccelerometer(0);
+            motionSensor::bno.enableGravity(0);
+            motionSensor::bno.enableLinearAccelerometer(0);
+            motionSensor::bno.enableGyro(0);
+            motionSensor::bno.enableMagnetometer(0);
+            motionSensor::bno.enableRotationVector(0);
             break;
         case SensorType::PRESSURE:
             _configurations.pressure.fill(0);
@@ -116,9 +147,10 @@ namespace sensorData
         updateHasAtLeastOneNonzeroDelay(_configurations);
     }
 
-    void flattenConfigurations(Configurations &_configurations) {
-        std::copy (_configurations.motion.cbegin(), _configurations.motion.cend(), _configurations.flattened.begin());
-        std::copy (_configurations.pressure.cbegin(), _configurations.pressure.cend(), _configurations.flattened.begin() + _configurations.motion.max_size());
+    void flattenConfigurations(Configurations &_configurations)
+    {
+        std::copy(_configurations.motion.cbegin(), _configurations.motion.cend(), _configurations.flattened.begin());
+        std::copy(_configurations.pressure.cbegin(), _configurations.pressure.cend(), _configurations.flattened.begin() + _configurations.motion.max_size());
     }
 
     uint8_t motionData[(uint8_t)motionSensor::DataSize::TOTAL + (uint8_t)motionSensor::DataType::COUNT]{0};
@@ -145,27 +177,27 @@ namespace sensorData
                 switch (dataType)
                 {
                 case motionSensor::DataType::ACCELERATION:
-                    motionSensor::bno.getRawVectorData(Adafruit_BNO055::VECTOR_ACCELEROMETER, data);
+                    motionSensor::bno.getRawAccel(data);
                     dataSize = (uint8_t)motionSensor::DataSize::ACCELERATION;
                     break;
                 case motionSensor::DataType::GRAVITY:
-                    motionSensor::bno.getRawVectorData(Adafruit_BNO055::VECTOR_GRAVITY, data);
+                    motionSensor::bno.getRawGrav(data);
                     dataSize = (uint8_t)motionSensor::DataSize::GRAVITY;
                     break;
                 case motionSensor::DataType::LINEAR_ACCELERATION:
-                    motionSensor::bno.getRawVectorData(Adafruit_BNO055::VECTOR_LINEARACCEL, data);
+                    motionSensor::bno.getRawLinAccel(data);
                     dataSize = (uint8_t)motionSensor::DataSize::LINEAR_ACCELERATION;
                     break;
                 case motionSensor::DataType::ROTATION_RATE:
-                    motionSensor::bno.getRawVectorData(Adafruit_BNO055::VECTOR_GYROSCOPE, data);
+                    motionSensor::bno.getRawGyro(data);
                     dataSize = (uint8_t)motionSensor::DataSize::ROTATION_RATE;
                     break;
                 case motionSensor::DataType::MAGNETOMETER:
-                    motionSensor::bno.getRawVectorData(Adafruit_BNO055::VECTOR_MAGNETOMETER, data);
+                    motionSensor::bno.getRawMag(data);
                     dataSize = (uint8_t)motionSensor::DataSize::MAGNETOMETER;
                     break;
                 case motionSensor::DataType::QUATERNION:
-                    motionSensor::bno.getRawQuatData(data);
+                    motionSensor::bno.getRawQuat(data);
                     dataSize = (uint8_t)motionSensor::DataSize::QUATERNION;
                     break;
                 default:

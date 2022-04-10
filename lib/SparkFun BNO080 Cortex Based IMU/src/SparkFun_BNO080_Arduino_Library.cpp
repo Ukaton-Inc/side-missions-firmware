@@ -33,7 +33,7 @@ boolean BNO080::begin(uint8_t deviceAddress, TwoWire &wirePort, uint8_t intPin)
 	_int = intPin;					//Get the pin that the user wants to use for interrupts. By default, it's 255 and we'll not use it in dataAvailable() function.
 	if (_int != 255)
 	{
-		pinMode(_int, INPUT_PULLUP);
+		pinMode(_int, LOW);
 	}
 
 	//We expect caller to begin their I2C port, with the speed of their choice external to the library
@@ -309,6 +309,13 @@ uint16_t BNO080::parseInputReport(void)
 		rawAccelY = data2;
 		rawAccelZ = data3;
 	}
+	else if (shtpData[5] == SENSOR_REPORTID_GRAVITY)
+	{
+		gravAccuracy = status;
+		rawGravX = data1;
+		rawGravY = data2;
+		rawGravZ = data3;
+	}
 	else if (shtpData[5] == SENSOR_REPORTID_LINEAR_ACCELERATION)
 	{
 		accelLinAccuracy = status;
@@ -499,6 +506,16 @@ void BNO080::getQuat(float &i, float &j, float &k, float &real, float &radAccura
 	radAccuracy = qToFloat(rawQuatRadianAccuracy, rotationVector_Q1);
 	accuracy = quatAccuracy;
 }
+imu::Quaternion BNO080::getQuatVector() {
+	return imu::Quaternion(getQuatReal(), getQuatI(), getQuatJ(), getQuatK());
+}
+void BNO080::getRawQuat(int16_t* buffer)
+{
+	buffer[0] = rawQuatReal;
+	buffer[1] = rawQuatI;
+	buffer[2] = rawQuatJ;
+	buffer[3] = rawQuatK;
+}
 
 //Return the rotation vector quaternion I
 float BNO080::getQuatI()
@@ -586,6 +603,15 @@ void BNO080::getAccel(float &x, float &y, float &z, uint8_t &accuracy)
 	z = qToFloat(rawAccelZ, accelerometer_Q1);
 	accuracy = accelAccuracy;
 }
+imu::Vector<3> BNO080::getAccelVector() {
+	return imu::Vector<3>(getAccelX(),getAccelY(),getAccelZ());
+}
+void BNO080::getRawAccel(int16_t* buffer)
+{
+	buffer[0] = rawAccelX;
+	buffer[1] = rawAccelY;
+	buffer[2] = rawAccelZ;
+}
 
 //Return the acceleration component
 float BNO080::getAccelX()
@@ -614,6 +640,52 @@ uint8_t BNO080::getAccelAccuracy()
 	return (accelAccuracy);
 }
 
+//Gets the full acceleration
+//x,y,z output floats
+void BNO080::getAccel(float &x, float &y, float &z, uint8_t &accuracy)
+{
+	x = qToFloat(rawGravX, gravity_Q1);
+	y = qToFloat(rawGravY, gravity_Q1);
+	z = qToFloat(rawGravZ, gravity_Q1);
+	accuracy = gravAccuracy;
+}
+imu::Vector<3> BNO080::getGravVector() {
+	return imu::Vector<3>(getGravX(),getGravY(),getGravZ());
+}
+void BNO080::getRawGrav(int16_t* buffer)
+{
+	buffer[0] = rawGravX;
+	buffer[1] = rawGravY;
+	buffer[2] = rawGravZ;
+}
+
+//Return the gravity component
+float BNO080::getGravX()
+{
+	float accel = qToFloat(rawGravX, gravity_Q1);
+	return (accel);
+}
+
+//Return the gravity component
+float BNO080::getGravY()
+{
+	float grav = qToFloat(rawGravY, gravity_Q1);
+	return (grav);
+}
+
+//Return the gravity component
+float BNO080::getGravZ()
+{
+	float grav = qToFloat(rawGravZ, gravity_Q1);
+	return (grav);
+}
+
+//Return the acceleration component
+uint8_t BNO080::getGravAccuracy()
+{
+	return (gravAccuracy);
+}
+
 // linear acceleration, i.e. minus gravity
 
 //Gets the full lin acceleration
@@ -624,6 +696,15 @@ void BNO080::getLinAccel(float &x, float &y, float &z, uint8_t &accuracy)
 	y = qToFloat(rawLinAccelY, linear_accelerometer_Q1);
 	z = qToFloat(rawLinAccelZ, linear_accelerometer_Q1);
 	accuracy = accelLinAccuracy;
+}
+imu::Vector<3> BNO080::getLinAccelVector() {
+	return imu::Vector<3>(getLinAccelX(),getLinAccelY(),getLinAccelZ());
+}
+void BNO080::getRawLinAccel(int16_t* buffer)
+{
+	buffer[0] = rawLinAccelX;
+	buffer[1] = rawLinAccelY;
+	buffer[2] = rawLinAccelZ;
 }
 
 //Return the acceleration component
@@ -662,6 +743,15 @@ void BNO080::getGyro(float &x, float &y, float &z, uint8_t &accuracy)
 	z = qToFloat(rawGyroZ, gyro_Q1);
 	accuracy = gyroAccuracy;
 }
+imu::Vector<3> BNO080::getGyroVector() {
+	return imu::Vector<3>(getGyroX(),getGyroY(),getGyroZ());
+}
+void BNO080::getRawGyro(int16_t* buffer)
+{
+	buffer[0] = rawGyroX;
+	buffer[1] = rawGyroY;
+	buffer[2] = rawGyroZ;
+}
 
 //Return the gyro component
 float BNO080::getGyroX()
@@ -699,6 +789,15 @@ void BNO080::getMag(float &x, float &y, float &z, uint8_t &accuracy)
 	z = qToFloat(rawMagZ, magnetometer_Q1);
 	accuracy = magAccuracy;
 }
+imu::Vector<3> BNO080::getMagVector() {
+	return imu::Vector<3>(getMagX(),getMagY(),getMagZ());
+}
+void BNO080::getRawMag(int16_t* buffer)
+{
+	buffer[0] = rawMagX;
+	buffer[1] = rawMagY;
+	buffer[2] = rawMagZ;
+}
 
 //Return the magnetometer component
 float BNO080::getMagX()
@@ -734,6 +833,15 @@ void BNO080::getFastGyro(float &x, float &y, float &z)
 	x = qToFloat(rawFastGyroX, angular_velocity_Q1);
 	y = qToFloat(rawFastGyroY, angular_velocity_Q1);
 	z = qToFloat(rawFastGyroZ, angular_velocity_Q1);
+}
+imu::Vector<3> BNO080::getFastGyroVector() {
+	return imu::Vector<3>(getFastGyroX(),getFastGyroY(),getFastGyroZ());
+}
+void BNO080::getRawFastGyro(int16_t* buffer)
+{
+	buffer[0] = rawFastGyroX;
+	buffer[1] = rawFastGyroY;
+	buffer[2] = rawFastGyroZ;
 }
 
 // Return the high refresh rate gyro component
@@ -1104,6 +1212,12 @@ void BNO080::enableARVRStabilizedGameRotationVector(uint16_t timeBetweenReports)
 void BNO080::enableAccelerometer(uint16_t timeBetweenReports)
 {
 	setFeatureCommand(SENSOR_REPORTID_ACCELEROMETER, timeBetweenReports);
+}
+
+//Sends the packet to enable the gravity
+void BNO080::enableAccelerometer(uint16_t timeBetweenReports)
+{
+	setFeatureCommand(SENSOR_REPORTID_GRAVITY, timeBetweenReports);
 }
 
 //Sends the packet to enable the accelerometer

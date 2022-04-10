@@ -21,7 +21,7 @@ namespace type
             _isRightInsole = (type == Type::RIGHT_INSOLE);
             pressureSensor::updateSide(_isRightInsole);
             weightDetection::loadModel();
-            haptics::setup();
+            haptics::begin();
         }
         else {
             weightData::setDelay(0);

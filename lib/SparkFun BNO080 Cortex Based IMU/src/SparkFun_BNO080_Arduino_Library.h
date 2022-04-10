@@ -32,6 +32,7 @@
 
 #include <Wire.h>
 #include <SPI.h>
+#include "utility/imumaths.h"
 
 //The default I2C address for the BNO080 on the SparkX breakout is 0x4B. 0x4A is also possible.
 #define BNO080_DEFAULT_ADDRESS 0x4B
@@ -154,6 +155,7 @@ public:
 	void enableARVRStabilizedRotationVector(uint16_t timeBetweenReports);
 	void enableARVRStabilizedGameRotationVector(uint16_t timeBetweenReports);
 	void enableAccelerometer(uint16_t timeBetweenReports);
+	void enableGravity(uint16_t timeBetweenReports);
 	void enableLinearAccelerometer(uint16_t timeBetweenReports);
 	void enableGyro(uint16_t timeBetweenReports);
 	void enableMagnetometer(uint16_t timeBetweenReports);
@@ -172,6 +174,8 @@ public:
 	uint16_t parseCommandReport(void); //Parse command responses out of report
 
 	void getQuat(float &i, float &j, float &k, float &real, float &radAccuracy, uint8_t &accuracy);
+	imu::Quaternion getQuatVector();
+	void getRawQuat(int16_t* buffer);
 	float getQuatI();
 	float getQuatJ();
 	float getQuatK();
@@ -180,29 +184,47 @@ public:
 	uint8_t getQuatAccuracy();
 
 	void getAccel(float &x, float &y, float &z, uint8_t &accuracy);
+	imu::Vector<3> getAccelVector();
+	void getRawAccel(int16_t *buffer);
 	float getAccelX();
 	float getAccelY();
 	float getAccelZ();
 	uint8_t getAccelAccuracy();
 
+	void getGrav(float &x, float &y, float &z, uint8_t &accuracy);
+	imu::Vector<3> getGravVector();
+	void getRawGrav(int16_t *buffer);
+	float getGravX();
+	float getGravY();
+	float getGravZ();
+	uint8_t getGravAccuracy();
+
 	void getLinAccel(float &x, float &y, float &z, uint8_t &accuracy);
+	imu::Vector<3> getLinAccelVector();
+	void getRawLinAccel(int16_t* buffer);
 	float getLinAccelX();
 	float getLinAccelY();
 	float getLinAccelZ();
 	uint8_t getLinAccelAccuracy();
 
 	void getGyro(float &x, float &y, float &z, uint8_t &accuracy);
+	imu::Vector<3> getGyroVector();
+	void getRawGyro(int16_t* buffer);
 	float getGyroX();
 	float getGyroY();
 	float getGyroZ();
 	uint8_t getGyroAccuracy();
 
 	void getFastGyro(float &x, float &y, float &z);
+	imu::Vector<3> getFastGyroVector();
+	void getRawFastGyro(int16_t* buffer);
 	float getFastGyroX();
 	float getFastGyroY();
 	float getFastGyroZ();
 
 	void getMag(float &x, float &y, float &z, uint8_t &accuracy);
+	imu::Vector<3> getMagVector();
+	void getRawMag(int16_t* buffer);
 	float getMagX();
 	float getMagY();
 	float getMagZ();
@@ -279,9 +301,9 @@ private:
 
 	bool _hasReset = false;		// Keeps track of any Reset Complete packets we receive. 
 
-	public:
 	//These are the raw sensor values (without Q applied) pulled from the user requested Input Report
 	uint16_t rawAccelX, rawAccelY, rawAccelZ, accelAccuracy;
+	uint16_t rawGravX, rawGravY, rawGravZ, gravAccuracy;
 	uint16_t rawLinAccelX, rawLinAccelY, rawLinAccelZ, accelLinAccuracy;
 	uint16_t rawGyroX, rawGyroY, rawGyroZ, gyroAccuracy;
 	uint16_t rawMagX, rawMagY, rawMagZ, magAccuracy;
@@ -304,6 +326,7 @@ private:
 	int16_t rotationVector_Q1 = 14;
 	int16_t rotationVectorAccuracy_Q1 = 12; //Heading accuracy estimate in radians. The Q point is 12.
 	int16_t accelerometer_Q1 = 8;
+	int16_t gravity_Q1 = 8;
 	int16_t linear_accelerometer_Q1 = 8;
 	int16_t gyro_Q1 = 9;
 	int16_t magnetometer_Q1 = 4;

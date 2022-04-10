@@ -630,10 +630,10 @@ namespace osc
                     bundleOUT.add("/name").add(name::getName()->c_str());
                     break;
                 case MessageType::MOTION_CALIBRATION:
-                    bundleOUT.add("/calibration").add("motion").add("system").add(motionSensor::calibration[0]);
+                    bundleOUT.add("/calibration").add("motion").add("accelerometer").add(motionSensor::calibration[0]);
                     bundleOUT.add("/calibration").add("motion").add("gyroscope").add(motionSensor::calibration[1]);
-                    bundleOUT.add("/calibration").add("motion").add("accelerometer").add(motionSensor::calibration[2]);
-                    bundleOUT.add("/calibration").add("motion").add("magnetometer").add(motionSensor::calibration[3]);
+                    bundleOUT.add("/calibration").add("motion").add("magnetometer").add(motionSensor::calibration[2]);
+                    bundleOUT.add("/calibration").add("motion").add("quaternion").add(motionSensor::calibration[3]);
                     break;
                 case MessageType::SENSOR_RATE:
                     for (auto updatedMotionDataRateFlagIterator = _updatedMotionDataRateFlags.begin(); updatedMotionDataRateFlagIterator != _updatedMotionDataRateFlags.end(); updatedMotionDataRateFlagIterator++)
@@ -664,7 +664,7 @@ namespace osc
                         {
                         case MotionSensorDataType::ACCELERATION:
                         {
-                            auto vector = motionSensor::bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
+                            auto vector = motionSensor::bno.getAccelVector();
                             float v[3]{vector.x(), vector.y(), vector.z()};
                             rearrangeVector(v);
                             bundleOUT.add("/data").add("motion").add("acceleration").add(v[0]).add(v[1]).add(v[2]);
@@ -672,7 +672,7 @@ namespace osc
                         break;
                         case MotionSensorDataType::GRAVITY:
                         {
-                            auto vector = motionSensor::bno.getVector(Adafruit_BNO055::VECTOR_GRAVITY);
+                            auto vector = motionSensor::bno.getGravVector();
                             float v[3]{vector.x(), vector.y(), vector.z()};
                             rearrangeVector(v);
                             bundleOUT.add("/data").add("motion").add("gravity").add(v[0]).add(v[1]).add(v[2]);
@@ -680,7 +680,7 @@ namespace osc
                         break;
                         case MotionSensorDataType::LINEAR_ACCELERATION:
                         {
-                            auto vector = motionSensor::bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
+                            auto vector = motionSensor::bno.getLinAccelVector();
                             float v[3]{vector.x(), vector.y(), vector.z()};
                             rearrangeVector(v);
                             bundleOUT.add("/data").add("motion").add("linearAcceleration").add(v[0]).add(v[1]).add(v[2]);
@@ -688,7 +688,7 @@ namespace osc
                         break;
                         case MotionSensorDataType::ROTATION_RATE:
                         {
-                            auto vector = motionSensor::bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
+                            auto vector = motionSensor::bno.getGyroVector();
                             float e[3]{vector.x(), vector.y(), vector.z()};
                             rearrangeEuler(e);
                             bundleOUT.add("/data").add("motion").add("rotationRate").add(e[0]).add(e[1]).add(e[2]);
@@ -696,7 +696,7 @@ namespace osc
                         break;
                         case MotionSensorDataType::MAGNETOMETER:
                         {
-                            auto vector = motionSensor::bno.getVector(Adafruit_BNO055::VECTOR_MAGNETOMETER);
+                            auto vector = motionSensor::bno.getMagVector();
                             float v[3]{vector.x(), vector.y(), vector.z()};
                             rearrangeVector(v);
                             bundleOUT.add("/data").add("motion").add("magnetometer").add(v[0]).add(v[1]).add(v[2]);
@@ -707,7 +707,7 @@ namespace osc
                         {
                             if (motionDataType == MotionSensorDataType::QUATERNION || _motionSensorDataFlags.count(MotionSensorDataType::QUATERNION) == 0)
                             {
-                                auto quaternion = motionSensor::bno.getQuat();
+                                auto quaternion = motionSensor::bno.getQuatVector();
                                 auto rearrangedQuaternion = rearrangeQuaternion(quaternion);
                                 float q[4]{rearrangedQuaternion.x(), rearrangedQuaternion.y(), rearrangedQuaternion.z(), rearrangedQuaternion.w()};
 

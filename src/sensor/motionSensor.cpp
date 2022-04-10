@@ -5,69 +5,44 @@
 
 namespace motionSensor
 {
-    Adafruit_BNO055 bno = Adafruit_BNO055(-1, 0x28);
-    Preferences preferences;
+    extern BNO080 bno;
 
     bool isValidDataType(DataType dataType)
     {
         return dataType < DataType::COUNT;
     }
-
-    adafruit_bno055_offsets_t sensorOffsets;
     uint8_t calibration[(uint8_t)CalibrationType::COUNT];
 
     bool wroteFullCalibration = false;
     void updateCalibration()
     {
-        bno.getCalibration(&calibration[0], &calibration[1], &calibration[2], &calibration[3]);
-        if (bno.isFullyCalibrated() && !wroteFullCalibration)
-        {
-            bool readSuccessful = bno.getSensorOffsets(sensorOffsets);
-            if (readSuccessful)
-            {
-                preferences.begin("motionSensor");
-                preferences.putBytes("sensorOffsets", (void *) &sensorOffsets, sizeof(sensorOffsets));
-                preferences.end();
-                wroteFullCalibration = true;
-            }
-        }
+        calibration[(uint8_t)CalibrationType::ACCELEROMETER] = bno.getAccelAccuracy();
+        calibration[(uint8_t)CalibrationType::GYROSCOPE] = bno.getGyroAccuracy();
+        calibration[(uint8_t)CalibrationType::MAGNETOMETER] = bno.getMagAccuracy();
+        calibration[(uint8_t)CalibrationType::QUATERNION] = bno.getQuatAccuracy();
     }
     unsigned long lastCalibrationUpdateTime = 0;
     const uint16_t calibration_delay_ms = 1000;
 
-    unsigned long lastTimeMoved = 0;
     bool didInterrupt = false;
     void interruptCallback()
     {
+        Serial.println("interrupted");
         didInterrupt = true;
-        lastTimeMoved = millis();
     }
 
     void setup()
     {
+        Wire.begin();
         if (!bno.begin())
         {
-            Serial.println("No BNO055 detected");
+            Serial.println("No BNO080 detected");
         }
-        delay(1000);
+        Wire.setClock(400000);
+        bno.calibrateAll();
 
-        preferences.begin("motionSensor");
-        if (preferences.isKey("sensorOffsets")) {
-            preferences.getBytes("sensorOffsets", (void *) &sensorOffsets, sizeof(sensorOffsets));
-            bno.setSensorOffsets(sensorOffsets);
-        }
-        preferences.end();
-
-        bno.setExtCrystalUse(false);
-#if ENABLE_MOVE_TO_WAKE
-        pinMode(interrupt_pin, INPUT);
-        attachInterrupt(digitalPinToInterrupt(interrupt_pin), interruptCallback, RISING);
-        bno.enableAnyMotion(100, 5);
-        bno.enableInterruptsOnXYZ(ENABLE, ENABLE, ENABLE);
-        bno.enterLowPowerMode();
-#else
-        bno.enterNormalMode();
-#endif
+        // FILL - external oscillator stuff
+        // FILL - interrupts
     }
 
     unsigned long currentTime;
@@ -78,7 +53,6 @@ namespace motionSensor
         if (didInterrupt)
         {
             didInterrupt = false;
-            bno.resetInterrupts();
         }
 
         if (currentTime >= lastCalibrationUpdateTime + calibration_delay_ms)

@@ -15,16 +15,36 @@ namespace haptics
 
     Adafruit_DRV2605 drv;
     bool didSetup = false;
+    bool canBegin() {
+        return !didSetup && type::isInsole();
+    }
+    void _begin() {
+        if (canBegin())
+        {
+            if (drv.begin()) {
+                drv.begin();
+                drv.setMode(DRV2605_MODE_INTTRIG);
+                drv.selectLibrary(1);
+
+                Serial.println("started haptics");
+                didSetup = true;
+            }
+            else {
+                Serial.println("unable to start haptics");
+            }
+        }
+    }
+
+    bool shouldBegin = false;
+    void begin() {
+        if (canBegin()) {
+            shouldBegin = true;
+        }
+    }
+
     void setup()
     {
-        if (!didSetup && type::isInsole())
-        {
-            drv.begin();
-            drv.setMode(DRV2605_MODE_INTTRIG);
-            drv.selectLibrary(1);
-
-            didSetup = true;
-        }
+        _begin();
     }
 
     unsigned long currentTime;
@@ -53,7 +73,7 @@ namespace haptics
     int sequenceIndex = -1;
     uint8_t sequenceLength = 0;
     void triggerSequence()
-    {
+    {   
         drv.stop();
         isTriggeringSequence = true;
         sequenceIndex = -1;
@@ -109,6 +129,10 @@ namespace haptics
 
     void vibrate(uint8_t *data, size_t length)
     {
+        if (!didSetup) {
+            return;
+        }
+
         auto vibrationType = (VibrationType)data[0];
         switch (vibrationType)
         {
@@ -143,6 +167,11 @@ namespace haptics
     void loop()
     {
         currentTime = millis();
+
+        if (shouldBegin) {
+            _begin();
+            shouldBegin = false;
+        }
 
         if (shouldTriggerWaveform)
         {
