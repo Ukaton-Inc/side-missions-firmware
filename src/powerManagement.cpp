@@ -1,4 +1,4 @@
-#include "moveToWake.h"
+#include "powerManagemnet.h"
 #include "sensor/motionSensor.h"
 #include "definitions.h"
 
@@ -10,7 +10,7 @@
 #include <esp_wifi.h>
 #include <esp_bt.h>
 
-namespace moveToWake
+namespace powerManagemnet
 {
     extern bool enabled = ENABLE_MOVE_TO_WAKE;
     unsigned long delayUntilSleep = 1000 * 60;
@@ -77,4 +77,4 @@ namespace moveToWake
         Serial.println("Time to sleep...");
         esp_deep_sleep_start();
     }
-} // namespace moveToWake
+} // namespace powerManagemnet

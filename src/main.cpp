@@ -8,7 +8,7 @@
 #include "battery.h"
 #include "sensor/motionSensor.h"
 #include "information/type.h"
-#include "moveToWake.h"
+#include "powerManagement.h"
 #include "sensor/pressureSensor.h"
 #include "sensor/sensorData.h"
 #include "weight/weightData.h"
@@ -25,7 +25,7 @@ void setup()
     name::setup();
     type::setup();
     motionSensor::setup();
-    moveToWake::setup();
+    powerManagement::setup();
     pressureSensor::setup();
     haptics::setup();
     steps::setup();
@@ -37,7 +37,7 @@ void loop()
 {
     battery::loop();
     motionSensor::loop();
-    moveToWake::loop();
+    powerManagement::loop();
     sensorData::loop();
     steps::loop();
     haptics::loop();
