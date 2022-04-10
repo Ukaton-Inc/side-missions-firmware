@@ -640,9 +640,9 @@ uint8_t BNO080::getAccelAccuracy()
 	return (accelAccuracy);
 }
 
-//Gets the full acceleration
+//Gets the full gravity
 //x,y,z output floats
-void BNO080::getAccel(float &x, float &y, float &z, uint8_t &accuracy)
+void BNO080::getGrav(float &x, float &y, float &z, uint8_t &accuracy)
 {
 	x = qToFloat(rawGravX, gravity_Q1);
 	y = qToFloat(rawGravY, gravity_Q1);
@@ -1215,7 +1215,7 @@ void BNO080::enableAccelerometer(uint16_t timeBetweenReports)
 }
 
 //Sends the packet to enable the gravity
-void BNO080::enableAccelerometer(uint16_t timeBetweenReports)
+void BNO080::enableGravity(uint16_t timeBetweenReports)
 {
 	setFeatureCommand(SENSOR_REPORTID_GRAVITY, timeBetweenReports);
 }

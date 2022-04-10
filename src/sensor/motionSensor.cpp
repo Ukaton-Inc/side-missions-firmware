@@ -5,7 +5,7 @@
 
 namespace motionSensor
 {
-    extern BNO080 bno;
+    BNO080 bno;
 
     bool isValidDataType(DataType dataType)
     {
@@ -25,6 +25,7 @@ namespace motionSensor
     const uint16_t calibration_delay_ms = 1000;
 
     bool didInterrupt = false;
+    unsigned long lastTimeMoved = 0;
     void interruptCallback()
     {
         Serial.println("interrupted");
@@ -33,6 +34,7 @@ namespace motionSensor
 
     void setup()
     {
+        return;
         Wire.begin();
         if (!bno.begin())
         {

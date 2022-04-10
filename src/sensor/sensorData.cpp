@@ -45,35 +45,38 @@ namespace sensorData
             switch (sensorType)
             {
             case SensorType::MOTION:
-                if (motionSensor::isValidDataType((motionSensor::DataType)sensorDataTypeIndex))
+            {
+                auto motionSensorDataType = (motionSensor::DataType)sensorDataTypeIndex;
+                if (motionSensor::isValidDataType(motionSensorDataType))
                 {
                     _configurations.motion[sensorDataTypeIndex] = delay;
-                    switch (motionSensor::DataType)
+                    switch (motionSensorDataType)
                     {
-                        case motionSensor::DataType::ACCELERATION:
+                    case motionSensor::DataType::ACCELERATION:
                         motionSensor::bno.enableAccelerometer(delay);
                         break;
-                        case motionSensor::DataType::GRAVITY:
+                    case motionSensor::DataType::GRAVITY:
                         motionSensor::bno.enableGravity(delay);
                         break;
-                        case motionSensor::DataType::LINEAR_ACCELERATION:
+                    case motionSensor::DataType::LINEAR_ACCELERATION:
                         motionSensor::bno.enableLinearAccelerometer(delay);
                         break;
-                        case motionSensor::DataType::ROTATION_RATE:
+                    case motionSensor::DataType::ROTATION_RATE:
                         motionSensor::bno.enableGyro(delay);
                         break;
-                        case motionSensor::DataType::MAGNETOMETER:
+                    case motionSensor::DataType::MAGNETOMETER:
                         motionSensor::bno.enableMagnetometer(delay);
                         break;
-                        case motionSensor::DataType::QUATERNION:
+                    case motionSensor::DataType::QUATERNION:
                         motionSensor::bno.enableRotationVector(delay);
                         break;
-                        default:
+                    default:
                         Serial.printf("uncaught motion sensor type %u\n", sensorDataTypeIndex);
                         break;
                     }
                 }
-                break;
+            }
+            break;
             case SensorType::PRESSURE:
                 if (pressureSensor::isValidDataType((pressureSensor::DataType)sensorDataTypeIndex))
                 {
