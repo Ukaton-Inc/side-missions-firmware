@@ -1,6 +1,5 @@
 #include "definitions.h"
 #include "motionSensor.h"
-#include <Preferences.h>
 #include <lwipopts.h>
 
 namespace motionSensor
@@ -34,17 +33,20 @@ namespace motionSensor
 
     void setup()
     {
-        if (!bno.begin())
+        bno.enableDebugging();
+
+        if (!bno.begin(BNO080_DEFAULT_ADDRESS, Wire, interrupt_pin))
         {
             Serial.println("No BNO080 detected");
         }
         Wire.setClock(400000);
         bno.calibrateAll();
 
-        // FILL - external oscillator stuff
-        // FILL - interrupts
+        // FIX - interrupts
+        attachInterrupt(digitalPinToInterrupt(interrupt_pin), interruptCallback, FALLING);
+        interrupts();
 
-        //bno.enableAccelerometer(100);
+        bno.enableAccelerometer(100);
     }
 
     unsigned long currentTime;

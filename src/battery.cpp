@@ -16,7 +16,9 @@ namespace battery
             Serial.println("MAX17043 not detected. Please check wiring");
         }
         lipo.quickStart();
-        lipo.setThreshold(20);
+        //lipo.setThreshold(20);
+
+        
     }
 
     float voltage = 0;

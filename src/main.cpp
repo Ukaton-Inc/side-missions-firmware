@@ -15,6 +15,22 @@
 #include "steps.h"
 #include "haptics.h"
 
+#include <Preferences.h>
+
+#define TEST_BATTERY false
+
+#if TEST_BATTERY
+bool recordBatteryLevels = false;
+Preferences preferences;
+unsigned long lastUpdateBatteryLevelTime = 0;
+unsigned long batteryLevels[101]{0};
+char batteryLevelCharBuffer[3];
+void formatBatteryLevelCharBuffer(uint8_t batteryLevel)
+{
+    snprintf(batteryLevelCharBuffer, 3, "batteryLevel%u", batteryLevel);
+}
+#endif
+
 void setup()
 {
     Serial.begin(115200);
@@ -31,6 +47,29 @@ void setup()
     steps::setup();
     // wifi::setup();
     // ble::setup();
+
+#if TEST_BATTERY
+    preferences.begin("batteryTest");
+    if (!preferences.isKey("started"))
+    {
+        recordBatteryLevels = true;
+        preferences.putBool("started", true);
+    }
+    else
+    {
+        recordBatteryLevels = false;
+    }
+    Serial.printf("recording battery levels? %u\n", recordBatteryLevels);
+    if (!recordBatteryLevels)
+    {
+        for (uint8_t batteryLevel = 0; batteryLevel < 101; batteryLevel++)
+        {
+            formatBatteryLevelCharBuffer(batteryLevel);
+            Serial.printf("time when battery level was at %u%%: %ums\n", batteryLevel, preferences.getULong(batteryLevelCharBuffer, 0));
+        }
+    }
+    preferences.end();
+#endif
 }
 
 void loop()
@@ -44,4 +83,22 @@ void loop()
     weightData::loop();
     // wifi::loop();
     // ble::loop();
+
+#if TEST_BATTERY
+    if (recordBatteryLevels && lastUpdateBatteryLevelTime != battery::lastUpdateBatteryLevelTime)
+    {
+        auto batteryLevel = (uint8_t)battery::getLevel();
+        Serial.println(batteryLevel);
+        if (batteryLevel >= 0 && batteryLevel <= 100 && (batteryLevels[batteryLevel] == 0))
+        {
+            batteryLevels[batteryLevel] = millis();
+            formatBatteryLevelCharBuffer(batteryLevel);
+            Serial.printf("battery level changed to %u%% at %ums\n", batteryLevel, batteryLevels[batteryLevel]);
+            preferences.begin("batteryTest");
+            preferences.putULong(batteryLevelCharBuffer, batteryLevels[batteryLevel]);
+            preferences.end();
+        }
+        lastUpdateBatteryLevelTime = battery::lastUpdateBatteryLevelTime;
+    }
+#endif
 }
