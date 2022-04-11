@@ -17,17 +17,26 @@
 
 #include <Preferences.h>
 
-#define TEST_BATTERY false
+#define TEST_BATTERY true
 
 #if TEST_BATTERY
 bool recordBatteryLevels = false;
 Preferences preferences;
 unsigned long lastUpdateBatteryLevelTime = 0;
-unsigned long batteryLevels[101]{0};
+unsigned long batteryLevels[100]{0};
 char batteryLevelCharBuffer[3];
 void formatBatteryLevelCharBuffer(uint8_t batteryLevel)
 {
-    snprintf(batteryLevelCharBuffer, 3, "batteryLevel%u", batteryLevel);
+    snprintf(batteryLevelCharBuffer, 12+3, "batteryLevel%u", batteryLevel);
+    Serial.println(batteryLevelCharBuffer);
+}
+void updatePreferences(uint8_t batteryLevel) {
+    batteryLevels[batteryLevel] = millis();
+    formatBatteryLevelCharBuffer(batteryLevel);
+    Serial.printf("battery level changed to %u%% at %ums\n", batteryLevel, batteryLevels[batteryLevel]);
+    preferences.begin("batteryTest");
+    preferences.putULong(batteryLevelCharBuffer, batteryLevels[batteryLevel]);
+    preferences.end();
 }
 #endif
 
@@ -59,16 +68,23 @@ void setup()
     {
         recordBatteryLevels = false;
     }
+    preferences.end();
+    
     Serial.printf("recording battery levels? %u\n", recordBatteryLevels);
+    delay(1000);
+    for (uint8_t i = 0; i < 100; i++) {
+        //updatePreferences(i);
+    }
     if (!recordBatteryLevels)
     {
-        for (uint8_t batteryLevel = 0; batteryLevel < 101; batteryLevel++)
+        preferences.begin("batteryTest");
+        for (uint8_t batteryLevel = 0; batteryLevel < 100; batteryLevel++)
         {
             formatBatteryLevelCharBuffer(batteryLevel);
             Serial.printf("time when battery level was at %u%%: %ums\n", batteryLevel, preferences.getULong(batteryLevelCharBuffer, 0));
         }
+        preferences.end();
     }
-    preferences.end();
 #endif
 }
 
@@ -89,14 +105,9 @@ void loop()
     {
         auto batteryLevel = (uint8_t)battery::getLevel();
         Serial.println(batteryLevel);
-        if (batteryLevel >= 0 && batteryLevel <= 100 && (batteryLevels[batteryLevel] == 0))
+        if (batteryLevel >= 0 && batteryLevel < 100 && (batteryLevels[batteryLevel] == 0))
         {
-            batteryLevels[batteryLevel] = millis();
-            formatBatteryLevelCharBuffer(batteryLevel);
-            Serial.printf("battery level changed to %u%% at %ums\n", batteryLevel, batteryLevels[batteryLevel]);
-            preferences.begin("batteryTest");
-            preferences.putULong(batteryLevelCharBuffer, batteryLevels[batteryLevel]);
-            preferences.end();
+            updatePreferences(batteryLevel);
         }
         lastUpdateBatteryLevelTime = battery::lastUpdateBatteryLevelTime;
     }
