@@ -37,8 +37,8 @@ namespace battery
         auto _voltage = lipo.getVoltage();
         auto _soc = lipo.getSOC();
 
-        //Serial.printf("voltage: %fv\n", _voltage);
-        //Serial.printf("soc: %f%%\n", _soc);
+        Serial.printf("voltage: %fv\n", _voltage);
+        Serial.printf("soc: %f%%\n", _soc);
 
         if (_soc != soc)
         {
