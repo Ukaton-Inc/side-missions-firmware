@@ -1,6 +1,7 @@
 #include "bleSensorData.h"
 #include "sensor/sensorData.h"
 #include "wifi/webSocket.h"
+#include "definitions.h"
 
 namespace bleSensorData
 {
@@ -22,6 +23,15 @@ namespace bleSensorData
         void onWrite(BLECharacteristic *pCharacteristic)
         {
             auto data = pCharacteristic->getValue();
+#if DEBUG
+            Serial.println("received sensor data config ble message:");
+            auto rawData = data.data();
+            auto length = data.length();
+            for (uint8_t index = 0; index < length; index++)
+            {
+                Serial.printf("%u: %u\n", index, rawData[index]);
+            }
+#endif
             sensorData::setConfigurations((const uint8_t *)data.data(), (uint8_t)data.length());
             updateConfigurationCharacteristic();
         }
@@ -48,7 +58,7 @@ namespace bleSensorData
         dataSize += sizeof(timestamp);
         */
 
-        data[dataSize++] = sensorData::motionDataBitmask;        
+        data[dataSize++] = sensorData::motionDataBitmask;
         // data[dataSize++] = (uint8_t) sensorData::SensorType::MOTION;
         // data[dataSize++] = sensorData::motionDataSize;
         memcpy(&data[dataSize], sensorData::motionData, sensorData::motionDataSize);
